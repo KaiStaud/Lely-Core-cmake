@@ -3,7 +3,7 @@
 #define CO_SDEV_STRING(s)	NULL
 
 const struct co_sdev lpc17xx_sdev = {
-	.id = 0x02,
+	.id = 0x03,
 	.name = NULL,
 	.vendor_name = CO_SDEV_STRING("Lely Industries N.V."),
 	.vendor_id = 0x00000360,
@@ -12,11 +12,11 @@ const struct co_sdev lpc17xx_sdev = {
 	.revision = 0x00000000,
 	.order_code = NULL,
 	.baud = 0
-		| CO_BAUD_125,
+		| CO_BAUD_1000,
 	.rate = 0,
 	.lss = 0,
 	.dummy = 0x000000fe,
-	.nobj = 8,
+	.nobj = 20,
 	.objs = (const struct co_sobj[]){{
 		.name = CO_SDEV_STRING("Device type"),
 		.idx = 0x1000,
@@ -68,7 +68,38 @@ const struct co_sdev lpc17xx_sdev = {
 			.pdo_mapping = 0,
 			.flags = 0
 		}}
-	}, {
+	},
+
+	{
+			.name = CO_SDEV_STRING("Consumer heartbeat time"),
+			.idx = 0x1016,
+			.code = CO_OBJECT_ARRAY,
+			.nsub = 2,
+			.subs = (const struct co_ssub[]){{
+				.name = CO_SDEV_STRING("NrOfObjects"),
+				.subidx = 0x00,
+				.type = CO_DEFTYPE_UNSIGNED8,
+				.min = { .u8 = CO_UNSIGNED8_MIN },
+				.max = { .u8 = CO_UNSIGNED8_MAX },
+				.def = { .u8 = 0x01 },
+				.val = { .u8 = 0x01 },
+				.access = CO_ACCESS_RO,
+				.pdo_mapping = 0,
+				.flags = 0
+			}, {
+				.name = CO_SDEV_STRING("Consumer heartbeat time1"),
+				.subidx = 0x01,
+				.type = CO_DEFTYPE_UNSIGNED32,
+				.min = { .u32 = CO_UNSIGNED32_MIN },
+				.max = { .u32 = CO_UNSIGNED32_MAX },
+				.def = { .u32 = CO_UNSIGNED32_MIN },
+				.val = { .u32 = CO_UNSIGNED32_MIN },
+				.access = CO_ACCESS_RW,
+				.pdo_mapping = 0,
+				.flags = 0
+			}}
+		},
+	{
 		.name = CO_SDEV_STRING("Producer heartbeat time"),
 		.idx = 0x1017,
 		.code = CO_OBJECT_VAR,
@@ -79,8 +110,8 @@ const struct co_sdev lpc17xx_sdev = {
 			.type = CO_DEFTYPE_UNSIGNED16,
 			.min = { .u16 = CO_UNSIGNED16_MIN },
 			.max = { .u16 = CO_UNSIGNED16_MAX },
-			.def = { .u16 = 0x0032u },
-			.val = { .u16 = 0x0032u },
+			.def = { .u16 = 0x3E8 },
+			.val = { .u16 = 0x3E8 },
 			.access = CO_ACCESS_RW,
 			.pdo_mapping = 0,
 			.flags = 0
@@ -163,7 +194,271 @@ const struct co_sdev lpc17xx_sdev = {
 			.pdo_mapping = 0,
 			.flags = 0
 		}}
+	},
+	/* PDOs */
+	{
+		.name = CO_SDEV_STRING("RPDO communication parameter"),
+		.idx = 0x1400,
+		.code = CO_OBJECT_RECORD,
+		.nsub = 6,
+		.subs = (const struct co_ssub[]){{
+
+			.name = CO_SDEV_STRING("highest sub-index supported"),
+
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED8,
+
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+
+			.def = { .u8 = 0x05 },
+
+			.val = { .u8 = 0x05 },
+			.access = CO_ACCESS_CONST,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+
+			.name = CO_SDEV_STRING("COB-ID used by RPDO"),
+
+			.subidx = 0x01,
+			.type = CO_DEFTYPE_UNSIGNED32,
+
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+
+			.def = { .u32 = 0x000002fflu },
+
+			.val = { .u32 = 0x000002fflu },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+				| CO_OBJ_FLAGS_DEF_NODEID
+				| CO_OBJ_FLAGS_VAL_NODEID
+		}, {
+
+			.name = CO_SDEV_STRING("transmission type"),
+
+			.subidx = 0x02,
+			.type = CO_DEFTYPE_UNSIGNED8,
+
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+
+			.def = { .u8 = 0x01 },
+
+			.val = { .u8 = 0x01 },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+
+			.name = CO_SDEV_STRING("inhibit time"),
+
+			.subidx = 0x03,
+			.type = CO_DEFTYPE_UNSIGNED16,
+
+			.min = { .u16 = CO_UNSIGNED16_MIN },
+			.max = { .u16 = CO_UNSIGNED16_MAX },
+
+			.def = { .u16 = CO_UNSIGNED16_MIN },
+
+			.val = { .u16 = CO_UNSIGNED16_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+
+			.name = CO_SDEV_STRING("compatibility entry"),
+
+			.subidx = 0x04,
+			.type = CO_DEFTYPE_UNSIGNED8,
+
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+
+			.def = { .u8 = CO_UNSIGNED8_MIN },
+
+			.val = { .u8 = CO_UNSIGNED8_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+
+			.name = CO_SDEV_STRING("event-timer"),
+
+			.subidx = 0x05,
+			.type = CO_DEFTYPE_UNSIGNED16,
+
+			.min = { .u16 = CO_UNSIGNED16_MIN },
+			.max = { .u16 = CO_UNSIGNED16_MAX },
+
+			.def = { .u16 = CO_UNSIGNED16_MIN },
+
+			.val = { .u16 = CO_UNSIGNED16_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
 	}, {
+
+		.name = CO_SDEV_STRING("RPDO mapping parameter"),
+
+		.idx = 0x1600,
+		.code = CO_OBJECT_ARRAY,
+		.nsub = 2,
+		.subs = (const struct co_ssub[]){{
+
+			.name = CO_SDEV_STRING("NrOfObjects"),
+
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED8,
+
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+
+			.def = { .u8 = 0x01 },
+
+			.val = { .u8 = 0x01 },
+			.access = CO_ACCESS_RO,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+
+			.name = CO_SDEV_STRING("RPDO mapping parameter1"),
+
+			.subidx = 0x01,
+			.type = CO_DEFTYPE_UNSIGNED32,
+
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+
+			.val = { .u32 = 0x60400020lu }, // receives 0x4000
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	}, {
+
+		.name = CO_SDEV_STRING("TPDO communication parameter"),
+		.idx = 0x1800,
+		.code = CO_OBJECT_RECORD,
+		.nsub = 7,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("highest sub-index supported"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED8,
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+			.def = { .u8 = 0x06 },
+			.val = { .u8 = 0x06 },
+			.access = CO_ACCESS_CONST,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+
+			.name = CO_SDEV_STRING("COB-ID used by TPDO"),
+			.subidx = 0x01,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = 0x00000182lu },
+			.val = { .u32 = 0x00000182lu },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+				| CO_OBJ_FLAGS_DEF_NODEID
+				| CO_OBJ_FLAGS_VAL_NODEID
+		}, {
+			.name = CO_SDEV_STRING("transmission type"),
+			.subidx = 0x02,
+			.type = CO_DEFTYPE_UNSIGNED8,
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+			.def = { .u8 = 0x01 },
+			.val = { .u8 = 0x01 },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+			.name = CO_SDEV_STRING("inhibit time"),
+			.subidx = 0x03,
+			.type = CO_DEFTYPE_UNSIGNED16,
+			.min = { .u16 = CO_UNSIGNED16_MIN },
+			.max = { .u16 = CO_UNSIGNED16_MAX },
+			.def = { .u16 = CO_UNSIGNED16_MIN },
+			.val = { .u16 = CO_UNSIGNED16_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+			.name = CO_SDEV_STRING("reserved"),
+			.subidx = 0x04,
+			.type = CO_DEFTYPE_UNSIGNED8,
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+			.def = { .u8 = CO_UNSIGNED8_MIN },
+			.val = { .u8 = CO_UNSIGNED8_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+			.name = CO_SDEV_STRING("event timer"),
+			.subidx = 0x05,
+			.type = CO_DEFTYPE_UNSIGNED16,
+			.min = { .u16 = CO_UNSIGNED16_MIN },
+			.max = { .u16 = CO_UNSIGNED16_MAX },
+			.def = { .u16 = CO_UNSIGNED16_MIN },
+			.val = { .u16 = CO_UNSIGNED16_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+			.name = CO_SDEV_STRING("SYNC start value"),
+			.subidx = 0x06,
+			.type = CO_DEFTYPE_UNSIGNED8,
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+			.def = { .u8 = CO_UNSIGNED8_MIN },
+
+			.val = { .u8 = CO_UNSIGNED8_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	}, {
+		.name = CO_SDEV_STRING("TPDO mapping parameter"),
+		.idx = 0x1a00,
+		.code = CO_OBJECT_ARRAY,
+		.nsub = 2,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("NrOfObjects"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED8,
+			.min = { .u8 = CO_UNSIGNED8_MIN },
+			.max = { .u8 = CO_UNSIGNED8_MAX },
+			.def = { .u8 = 0x01 },
+			.val = { .u8 = 0x01 },
+			.access = CO_ACCESS_RO,
+			.pdo_mapping = 0,
+			.flags = 0
+		}, {
+			.name = CO_SDEV_STRING("TPDO mapping parameter1"),
+			.subidx = 0x01,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = 0x60410020lu }, // sends 0x4001:00 32 bit lenght
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	},
+	/* Objects */
+	{
 		.name = CO_SDEV_STRING("Object with custom SDO download callback"),
 		.idx = 0x2000,
 		.code = CO_OBJECT_VAR,
@@ -197,6 +492,135 @@ const struct co_sdev lpc17xx_sdev = {
 			.pdo_mapping = 0,
 			.flags = 0
 		}}
-	}}
+	},
+	/* Custom Objecs */
+
+	{
+		.name = CO_SDEV_STRING("Controlword"),
+		.idx = 0x6040,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Controlword"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = 0x6 },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 1,
+			.flags = 0
+		}}
+	},
+	{
+		.name = CO_SDEV_STRING("Statusword"),
+		.idx = 0x6041,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Statusword"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 1,
+			.flags = 0
+		}}
+	},
+	{
+		.name = CO_SDEV_STRING("Digital Inputs"),
+		.idx = 0x60FD,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Digital Inputs"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	},
+	{
+		.name = CO_SDEV_STRING("Homing Method"),
+		.idx = 0x6098,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Homing Method"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	},
+	{
+		.name = CO_SDEV_STRING("Homing Speed"),
+		.idx = 0x6099,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Homing Speed"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	},
+	{
+		.name = CO_SDEV_STRING("Homing Acceleration"),
+		.idx = 0x609A,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Homing Acceleration"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	},
+	{
+		.name = CO_SDEV_STRING("Modes of Operation"),
+		.idx = 0x6060,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Modes of Operation"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	}
+}
 };
 

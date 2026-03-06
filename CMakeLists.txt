@@ -47,7 +47,7 @@ target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${LELY_CFLAGS_OTHER})
 # Link directories setup
 target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
-    ${LELY_LIBRARIES}
+    ${CMAKE_CURRENT_SOURCE_DIR}/lely-core/install/usr/local/lib/
 )
 
 # Add sources to executable
@@ -55,6 +55,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     Core/bsp/can.c
     Core/bsp/ring_buffer.c
+    Core/Src/stm32_time.c
+    Core/Src/sdev.c
 )
 
 # Add include paths
@@ -74,6 +76,14 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
     stm32cubemx
-
+    lely-coapp  
+    lely-io2  
+    lely-ev  
+    lely-co  
+    lely-can  
+    lely-util  
+    lely-libc  
+    #-lrt && :
+    #${LELY_LIBRARIES}
     # Add user defined libraries
 )

@@ -1,9 +1,8 @@
-#include "../Inc/main.h"
+#include "../Inc/fdcan.h"
 #include <string.h>
 #include "ring_buffer.h"
 #include "can.h"
 #include <stm32g4xx.h>
-#include "main.h"
 #include <lely/util/util.h>
 #include <stdio.h>
 #define CAN_RX_SIZE	16
@@ -31,7 +30,7 @@ static CAN_MSG_T txbuff[CAN_TX_SIZE];
 static RINGBUFF_T rxring;
 static RINGBUFF_T txring;
 
-static void can_flush(void);
+//static void can_flush(void);
 
 CAN_MSG_T prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, uint32_t fifo_isrs)
 {
@@ -80,6 +79,7 @@ CAN_MSG_T prv_read_can_received_msg(FDCAN_HandleTypeDef* hfdcan, uint32_t fifo, 
             rcvMsg.DLC = 0;
             break; /* Invalid length when more than 8 */
     }
+	return rcvMsg;
 }
 
 /**
@@ -219,11 +219,12 @@ const uint16_t CANID_MASK = 0x07FF;
         default: /* Hard error... */
             break;
     }
-
+	int e =  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &pTxHeader, msg->data);
+	/*
+	
     // Puffer für die formatierte Ausgabe
     char data_str[256]; // Angenommene Puffergröße, die groß genug ist
     int offset = 0;
-
     // Formatieren der Daten in den String
     offset += sprintf(data_str + offset, "  ID: 0x%lX", msg->id);
     offset += sprintf(data_str + offset, "  Length: %d", msg->len);
@@ -233,18 +234,21 @@ const uint16_t CANID_MASK = 0x07FF;
     for (unsigned int i = 0; i < msg->len; ++i) {
         offset += sprintf(data_str + offset, "%02X ", msg->data[i]); // Ausgabe der Daten im Hex-Format
     }
-    sprintf(data_str + offset, "]"); // Füge das abschließende Newline hinzu
-
-	int e =  HAL_FDCAN_AddMessageToTxFifoQ(&hfdcan1, &pTxHeader, msg->data);
+    sprintf(data_str + offset, "]"); // Füge das abschließende Newline hinzu	
+	*/
 	if(e != HAL_OK){
+	/*
 	    RTC_DateTypeDef gDate;
 	    RTC_TimeTypeDef gTime;
 	    HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BIN);
 	    HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BIN);
 	    //Display time Format: hh:mm:ss
-	    //trace("[ %02d:%02d:%02d ] failed sending CAN-Frame",gTime.Hours, gTime.Minutes, gTime.Seconds);
+	    trace("[ %02d:%02d:%02d ] failed sending CAN-Frame",gTime.Hours, gTime.Minutes, gTime.Seconds);
+*/
+		}
+	return 0;
 	}
-}
+/*
 static void can_flush(void)
 {
 	CAN_MSG_T Msg;
@@ -258,3 +262,4 @@ static void can_flush(void)
 
 	}
 }
+*/
