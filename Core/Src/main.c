@@ -45,6 +45,7 @@
 #include "../../libcia402/homing.h"
 #include "../../libcia402/statemachine.h"
 
+#include "../../external/libeasyspin/easyspin.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -210,7 +211,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+hello_easyspin();
   /* USER CODE END Init */
 
   /* Configure the system clock */

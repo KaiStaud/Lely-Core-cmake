@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include "ring_buffer.h"
+#include <lely/util/util.h>
 
 /*****************************************************************************
  * Private types/enumerations/variables

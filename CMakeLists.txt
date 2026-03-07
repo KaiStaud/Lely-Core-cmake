@@ -32,9 +32,20 @@ project(${CMAKE_PROJECT_NAME}  VERSION 0.0.1)
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
 include(cmake/version.cmake)
-
+include(cmake/cpm.cmake)
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/external/libeasyspin/CMakeLists.txt)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/external/libeasyspin)
+else()
+    CPMAddPackage(
+        NAME libeasyspin
+        GITHUB_REPOSITORY KaiStaud/libeasyspin
+        GIT_TAG main
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libeasyspin
+    )
+endif()
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
@@ -88,4 +99,5 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-util  
     lely-libc  
     libcia402
+    libeasyspin
     )
