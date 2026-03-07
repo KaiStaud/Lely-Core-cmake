@@ -1,0 +1,4 @@
+#pragma once
+#cmakedefine PROJECT_VERSION "@PROJECT_VERSION@"
+#cmakedefine APP_GIT_HASH "@APP_GIT_HASH@"
+#cmakedefine BUILD_TIME "@BUILD_TIME@"

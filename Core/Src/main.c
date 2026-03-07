@@ -39,6 +39,7 @@
 #include <lely/co/tpdo.h>
 #include <lely/can/net.h>
 
+#include "version.h"
 #include "../bsp/can.h"
 #include "../../libcia402/digital_inputs.h"
 #include "../../libcia402/homing.h"
@@ -231,7 +232,7 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   can_init(125);
-  trace("Welcome to VSCode-Lely-CiA-402-Tester!");
+  trace("SW-Version %s (Commit %s, build on %s)",PROJECT_VERSION,APP_GIT_HASH,BUILD_TIME);
   // Initialize the CAN network interface.
   net = can_net_create();
   assert(net);

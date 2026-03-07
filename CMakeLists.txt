@@ -27,10 +27,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LELY REQUIRED liblely-coapp)
 
-
-# Core project settings
-project(${CMAKE_PROJECT_NAME})
+# Core project settings)
+project(${CMAKE_PROJECT_NAME}  VERSION 0.0.1)
 message("Build type: " ${CMAKE_BUILD_TYPE})
+
+include(cmake/version.cmake)
 
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
