@@ -228,6 +228,7 @@ int main(void)
   MX_RTC_Init();
   MX_TIM2_Init();
   MX_SPI1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   can_init(125);
   trace("Welcome to VSCode-Lely-CiA-402-Tester!");
@@ -376,7 +377,6 @@ static int on_can_send(const struct can_msg* msg, void* data) {
   (void)data;
   struct timespec tp;
   clock_gettime(1, &tp);
-  trace("send frame %llu:%lu", tp.tv_sec, tp.tv_nsec);
   return can_send(msg, 1) == 1 ? 0 : -1;
 }
 
