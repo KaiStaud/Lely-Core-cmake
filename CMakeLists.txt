@@ -41,6 +41,9 @@ add_executable(${CMAKE_PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
+# Add user sources
+add_subdirectory(libcia402)
+
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${LELY_CFLAGS_OTHER})
 
 
@@ -83,7 +86,5 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-can  
     lely-util  
     lely-libc  
-    #-lrt && :
-    #${LELY_LIBRARIES}
-    # Add user defined libraries
-)
+    libcia402
+    )

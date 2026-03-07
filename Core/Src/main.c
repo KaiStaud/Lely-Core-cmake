@@ -28,6 +28,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdlib.h>
+
 #include <lely/co/co.h>
 #include <lely/co/nmt.h>
 #include <lely/co/rpdo.h>
@@ -38,12 +40,22 @@
 #include <lely/can/net.h>
 
 #include "../bsp/can.h"
-#include <stdlib.h>
+#include "../../libcia402/digital_inputs.h"
+#include "../../libcia402/homing.h"
+#include "../../libcia402/statemachine.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+enum homing_progress {
+	homing_disabled = 0,
+	opmode_configured = 1,
+	homing_profile_configured = 2,
+	homing_started = 3,
+	homing_active = 4,
+	homing_done = 5
+};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -52,6 +64,93 @@
 #define trace(...) \
 	diag_at(DIAG_DEBUG, 0, &(struct floc){ __FILE__, __LINE__, 0 }, \
 			__VA_ARGS__)
+
+int __io_putchar(int ch) {
+      HAL_UART_Transmit(&huart2, (uint8_t*) &ch, 1, 0xFFFF);
+      return ch;
+}
+
+uint32_t co_hal_read_digital_inputs(){
+	  digital_inputs io;
+	  io.positive_limit_switch=HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+	  uint32_t entry_60FD_00=read_inputs(io);
+	  return entry_60FD_00;
+}
+
+enum homing_progress try_homing(co_dev_t *dev)
+{
+
+  static enum homing_progress progress = homing_disabled;
+  switch (progress)
+	{
+		  case homing_disabled:
+			  uint32_t mode=co_sub_get_val_u32(co_dev_find_sub(dev,0x6060,0));
+			  if(mode == 0x6)
+			  {
+				  progress = opmode_configured;
+			  }
+			  break;
+		  case opmode_configured:
+			  uint32_t homing_profile=co_sub_get_val_u32(co_dev_find_sub(dev,0x6098,0));
+			  if (homing_profile == 0x1)
+			  {
+				  progress = homing_profile_configured;
+			  }
+			  break;
+		  case homing_profile_configured:
+			  mode=co_sub_get_val_u32(co_dev_find_sub(dev,0x6060,0));
+			  if(mode == 0xF6)
+			  {
+				  progress = homing_started;
+			  }
+			  break;
+		  case homing_started:
+			  trace("Homing:Start Homing");
+			  trace("Homing:Acceleration=%lu, Velocity=%lu",
+			  co_sub_get_val_u32(co_dev_find_sub(dev,0x609A,0)),
+			  co_sub_get_val_u32(co_dev_find_sub(dev,0x6099,0)));
+			  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+			  HAL_Delay(3000);
+			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+			  HAL_Delay(2);
+			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+			  uint8_t pData[]={0,0xD0,0,0,0x21,0x00,0x00,0x00,0xb8};
+			  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData), 10);
+			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+			  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+			  progress = homing_active;
+			  break;
+		  case homing_active:
+				if(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin))
+				{
+					progress = homing_done;
+					trace("Homing: Negative Endswitch triggered. Disabling drive");
+				}
+			  break;
+		  case homing_done:
+			  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+			  uint8_t pDisableCmd[]={0,0xA8};
+			  HAL_SPI_Transmit(&hspi1, pDisableCmd, sizeof(pDisableCmd), 10);
+			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+
+			  break;
+	}
+  return progress;
+}
+
+void set_statusword (co_dev_t *dev){
+	  co_unsigned32_t val = co_hal_read_digital_inputs();
+//		co_sub_set_val_u32(co_dev_find_sub(dev, 0x60FD, 0),&val);
+		// Controlword
+		co_obj_t * obj = co_dev_find_obj(dev, 0x6040);
+		uint32_t ctrl_word=co_sub_get_val_u32(co_dev_find_sub(dev,0x6040,0));
+		// Statusword
+		run_transition(ctrl_word);
+		uint16_t statusword=get_statusword_lowbyte(get_state());
+		obj = co_dev_find_obj(dev, 0x6041);
+		co_obj_set_val(obj, 0x00,&statusword, sizeof(val));
+}
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -131,7 +230,6 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   can_init(125);
-  HAL_UART_Transmit(&huart2,"Hello World",29,0);
   trace("Welcome to VSCode-Lely-CiA-402-Tester!");
   // Initialize the CAN network interface.
   net = can_net_create();
@@ -158,21 +256,21 @@ int main(void)
   //co_nmt_set_sync_ind(nmt, sync_indication, NULL);
   co_tpdo_t* tpdo_1 = co_tpdo_create(net, dev, 1);
   if (tpdo_1 == NULL) {
-    //trace("tdpo 1 not created");
+    trace("tdpo 1 not created");
   }
   co_rpdo_t* rpdo_1 = co_rpdo_create(net, dev, 1);
   if (rpdo_1 == NULL) {
-    //trace("rdpo 1 not created");
+    trace("rdpo 1 not created");
   }
 
   if (co_tpdo_start(tpdo_1) != 0) {
-    //trace("could not start tpdo");
+    trace("could not start tpdo");
   }
   if (co_rpdo_start(rpdo_1) != 0) {
-    //trace("could not start rpdo");
+    trace("could not start rpdo");
   }
-  //trace("Press PB1 to continue to start CanOpen loop");
-  //trace("Sending dummy data [7F 12 34");
+  trace("Press PB1 to continue to start CanOpen loop");
+  trace("Sending dummy data [7F 12 34");
   while (!HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)) {
     struct can_msg msg;
     msg.len = 2;
@@ -184,7 +282,7 @@ int main(void)
 
     // Disable Interrupt an poll can rx buffer
   }
-  //trace("Running CANOpen Application");
+  trace("Running CANOpen Application");
 
   /* USER CODE END 2 */
 
@@ -200,10 +298,10 @@ int main(void)
     HAL_RTC_GetTime(&hrtc, &gTime, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &gDate, RTC_FORMAT_BIN);
 
-    // //trace("%02d:%02d:%02d",gTime.Hours, gTime.Minutes, gTime.Seconds);
+    // trace("%02d:%02d:%02d",gTime.Hours, gTime.Minutes, gTime.Seconds);
 
     if ((last_tp.tv_sec == now.tv_sec) && (last_tp.tv_nsec == now.tv_nsec)) {
-      // //trace("clock did not progressed %lu:%lu",now.tv_sec,now.tv_nsec);
+      // trace("clock did not progressed %lu:%lu",now.tv_sec,now.tv_nsec);
     }
     can_net_set_time(net, &now);
 
@@ -216,8 +314,8 @@ int main(void)
       can_net_recv(net, &msg);
       //HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
-    //set_statusword(dev);
-    //try_homing(dev);
+    set_statusword(dev);
+    try_homing(dev);
     HAL_Delay(1);
     /* USER CODE END WHILE */
 
@@ -278,7 +376,7 @@ static int on_can_send(const struct can_msg* msg, void* data) {
   (void)data;
   struct timespec tp;
   clock_gettime(1, &tp);
-  //trace("send frame %lu:%lu", tp.tv_sec, tp.tv_nsec);
+  trace("send frame %llu:%lu", tp.tv_sec, tp.tv_nsec);
   return can_send(msg, 1) == 1 ? 0 : -1;
 }
 
@@ -341,9 +439,9 @@ static co_unsigned32_t on_dn_2000_00(co_sub_t* sub, struct co_sdo_req* req,
   // Write the temporary value to the local object dictionary.
   /*
   co_sub_dn(sub, &val);
-  //trace("Received SDO 0x2000:0 : val.u32=[%lu]", val.u32);
+  trace("Received SDO 0x2000:0 : val.u32=[%lu]", val.u32);
   run_transition(val.u32);
-  //trace("Drive state = %d, Statusword = %X", get_state(),
+  trace("Drive state = %d, Statusword = %X", get_state(),
         get_statusword_lowbyte(get_state()));
   */
   // Finalize the temporary value. This is only necessary to cleanup array
@@ -351,27 +449,7 @@ static co_unsigned32_t on_dn_2000_00(co_sub_t* sub, struct co_sdo_req* req,
   co_val_fini(type, &val);
   return ac;
 }
-/*
-static co_unsigned32_t
-on_up_2001_00(const co_sub_t *sub, struct co_sdo_req *req, void *data)
-{
-        assert(co_obj_get_idx(co_sub_get_obj(sub)) == 0x2001);
-        assert(co_sub_get_subidx(sub) == 0x00);
-        assert(req);
-        (void)data;
 
-        co_unsigned16_t type = co_sub_get_type(sub);
-        assert(type == CO_DEFTYPE_UNSIGNED32);
-
-        // TODO: Obtain value from somewhere.
-        co_unsigned32_t val = 42;
-
-        // Store the value in the send buffer.
-        co_unsigned32_t ac = 0;
-        co_sdo_req_up_val(req, type, &val, &ac);
-        return ac;
-}
-*/
 static co_unsigned32_t on_up_2001_00(const co_sub_t* sub,
                                      struct co_sdo_req* req, void* data) {
   assert(req);
@@ -379,7 +457,7 @@ static co_unsigned32_t on_up_2001_00(const co_sub_t* sub,
 
   co_unsigned16_t type = co_sub_get_type(sub);
 
-  co_unsigned32_t val = 0;//co_hal_read_digital_inputs();
+  co_unsigned32_t val = co_hal_read_digital_inputs();
 
   // Store the value in the send buffer.
   co_unsigned32_t ac = 0;
