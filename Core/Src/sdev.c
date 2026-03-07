@@ -3,7 +3,7 @@
 #define CO_SDEV_STRING(s)	NULL
 
 const struct co_sdev lpc17xx_sdev = {
-	.id = 0x03,
+	.id = 0x02,
 	.name = NULL,
 	.vendor_name = CO_SDEV_STRING("Lely Industries N.V."),
 	.vendor_id = 0x00000360,
