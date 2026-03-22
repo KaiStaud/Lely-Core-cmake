@@ -44,12 +44,18 @@
 #include "../../libcia402/digital_inputs.h"
 #include "../../libcia402/homing.h"
 #include "../../libcia402/statemachine.h"
-
-#include "../../external/libeasyspin/easyspin.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define CLI_ADDITIONAL_LOG_CATEGORIES \
+	X(CAT1, true) \
+	X(CAT2, false) \
+	X(CAT3, true) 
+
+#include "../shell/inc/sys_command_line.h"
+
+
 enum homing_progress {
 	homing_disabled = 0,
 	opmode_configured = 1,
@@ -185,7 +191,20 @@ static co_unsigned32_t on_up_2001_00(const co_sub_t *sub,
 		struct co_sdo_req *req, void *data);
 
 // dn : master to slave
-// up : slave to master
+// up : slave to 
+// These functions are called by cli:
+uint8_t move_to(int argc, char *argv[]){  LOG(CLI_LOG_CAT1, "My log line1");
+return 0;};
+uint8_t set_rpm(int argc, char *argv[]){return 0;};
+uint8_t get_io(int argc, char *argv[]){return 0;;};
+
+// Variables for to monitor with STM32CubeMonitor.
+// Need to be global!
+
+uint32_t rpm;
+uint32_t enable;
+uint32_t left_endstop_active;
+uint32_t right_endstop_active;
 
 /* USER CODE END PFP */
 
@@ -211,7 +230,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-hello_easyspin();
+//hello_easyspin();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -286,6 +305,14 @@ hello_easyspin();
     // Disable Interrupt an poll can rx buffer
   }
   trace("Running CANOpen Application");
+  CLI_INIT(&huart2);	
+  CLI_ADD_CMD("move_to", "Rotate n steps", move_to);
+  CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
+  CLI_ADD_CMD("get_io", "Read hw in/outputs", get_io);
+
+  LOG(CLI_LOG_CAT3, "My log line3");
+  LOG(CLI_LOG_CAT2, "My log line2");
+  LOG(CLI_LOG_CAT1, "My log line1");
 
   /* USER CODE END 2 */
 
@@ -319,6 +346,7 @@ hello_easyspin();
     }
     set_statusword(dev);
     try_homing(dev);
+    CLI_RUN();
     HAL_Delay(1);
     /* USER CODE END WHILE */
 

@@ -47,6 +47,18 @@ else()
     )
 endif()
 
+#    CPMAddPackage(
+#        NAME libushell-stm32
+#       GITHUB_REPOSITORY mdiepart/ushell-stm32
+#        GIT_TAG master
+#        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libushell-stm32)
+#    add_library(libushell-stm32 Core/shell/src/sys_command_line.c 
+#                                Core/shell/src/sys_queue.c )
+#target_include_directories(libushell-stm32 PRIVATE Core/Inc 
+#                                                    Drivers/STM32G4xx_HAL_Driver/Inc/
+#                                                    Drivers/CMSIS/Device/ST/STM32G4xx/Include
+#                                                    Drivers/BSP/STM32G4xx_Nucleo )
+
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
@@ -72,13 +84,16 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/bsp/ring_buffer.c
     Core/Src/stm32_time.c
     Core/Src/sdev.c
+    Core/shell/src/sys_command_line.c 
+    Core/shell/src/sys_queue.c 
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ${LELY_INCLUDE_DIRS}
-)
+#    external/libushell-stm32/inc
+    )
 
 # Add project symbols (macros)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
@@ -99,5 +114,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-util  
     lely-libc  
     libcia402
-    libeasyspin
+#    libeasyspin
+#    libushell-stm32
     )
