@@ -1,12 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
 
-#
-# This file is generated only once,
-# and is not re-generated if converter is called multiple times.
-#
-# User is free to modify the file as much as necessary
-#
-
 # Setup compiler settings
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -47,18 +40,15 @@ else()
     )
 endif()
 
-#    CPMAddPackage(
-#        NAME libushell-stm32
-#       GITHUB_REPOSITORY mdiepart/ushell-stm32
-#        GIT_TAG master
-#        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libushell-stm32)
-#    add_library(libushell-stm32 Core/shell/src/sys_command_line.c 
-#                                Core/shell/src/sys_queue.c )
-#target_include_directories(libushell-stm32 PRIVATE Core/Inc 
-#                                                    Drivers/STM32G4xx_HAL_Driver/Inc/
-#                                                    Drivers/CMSIS/Device/ST/STM32G4xx/Include
-#                                                    Drivers/BSP/STM32G4xx_Nucleo )
-
+if(EXISTS ${CMAKE_SOURCE_DIR}/external/libmotion/CMakeLists.txt)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/external/libmotion)
+else()
+    CPMAddPackage(
+        NAME libmotion
+        GITHUB_REPOSITORY KaiStaud/libmotion
+        GIT_TAG main
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libmotion)
+endif()
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
@@ -92,7 +82,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ${LELY_INCLUDE_DIRS}
-#    external/libushell-stm32/inc
+    external/libmotion/constant_velocity
+    external/libmotion/trapezoidal_ramp
     )
 
 # Add project symbols (macros)
@@ -114,6 +105,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-util  
     lely-libc  
     libcia402
-#    libeasyspin
-#    libushell-stm32
+    motion_tp_ramp
+    motion_constant_velocity
     )

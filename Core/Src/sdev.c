@@ -16,7 +16,7 @@ const struct co_sdev lpc17xx_sdev = {
 	.rate = 0,
 	.lss = 0,
 	.dummy = 0x000000fe,
-	.nobj = 20,
+	.nobj = 22,
 	.objs = (const struct co_sobj[]){{
 		.name = CO_SDEV_STRING("Device type"),
 		.idx = 0x1000,
@@ -619,8 +619,45 @@ const struct co_sdev lpc17xx_sdev = {
 			.access = CO_ACCESS_RW,
 			.pdo_mapping = 0,
 			.flags = 0
+		}},
+		},
+		{
+		.name = CO_SDEV_STRING("Target Position"),
+		.idx = 0x607A,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Target Position"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
+		}}
+	},
+			{
+		.name = CO_SDEV_STRING("Target Velocity"),
+		.idx = 0x60FF,
+		.code = CO_OBJECT_VAR,
+		.nsub = 1,
+		.subs = (const struct co_ssub[]){{
+			.name = CO_SDEV_STRING("Target Velocity"),
+			.subidx = 0x00,
+			.type = CO_DEFTYPE_UNSIGNED32,
+			.min = { .u32 = CO_UNSIGNED32_MIN },
+			.max = { .u32 = CO_UNSIGNED32_MAX },
+			.def = { .u32 = CO_UNSIGNED32_MIN },
+			.val = { .u32 = CO_UNSIGNED32_MIN },
+			.access = CO_ACCESS_RW,
+			.pdo_mapping = 0,
+			.flags = 0
 		}}
 	}
+	
 }
 };
 
