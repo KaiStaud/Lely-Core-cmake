@@ -45,9 +45,9 @@
 
 #include "version.h"
 #include "../bsp/can.h"
-#include "../../libcia402/digital_inputs.h"
-#include "../../libcia402/homing.h"
-#include "../../libcia402/statemachine.h"
+#include <libcia402/digital_inputs.h>
+#include <libcia402/homing.h>
+#include <libcia402/statemachine.h>
 
 #include <trapezoidal_ramp.h>
 /* USER CODE END Includes */

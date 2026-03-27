@@ -56,7 +56,7 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # Add user sources
-add_subdirectory(libcia402)
+add_subdirectory(external/libcia402)
 
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${LELY_CFLAGS_OTHER})
 
@@ -84,6 +84,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${LELY_INCLUDE_DIRS}
     external/libmotion/constant_velocity
     external/libmotion/trapezoidal_ramp
+    external
     )
 
 # Add project symbols (macros)
