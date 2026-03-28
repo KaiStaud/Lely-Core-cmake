@@ -211,11 +211,11 @@ cyclic_velocity_mode = 9,
 cyclic_torque_mode = 10
 };
 
-int arg_to_int(char *argv[])
+int arg_to_int(const char *arg)
 {
     char *p;
     errno = 0;
-    long conv = strtol(argv[1], &p, 10);
+    long conv = strtol(arg, &p, 0);
 
     // Check for errors: e.g., the string does not represent an integer
     // or the integer is larger than int
@@ -242,6 +242,7 @@ uint32_t get_mode(co_dev_t* dev){
 uint32_t run_motion_engine(enum mode selected_mode,int t,struct trapezoidal_ramp params){
     if((selected_mode == profile_position_mode) || (selected_mode == cyclic_position_mode))
     {
+        // TODO: Return Error "struct params uninitialized"
         return ramp_update(&params,t);
     }
     else if((selected_mode == profile_velocity_mode) || (selected_mode == cyclic_velocity_mode))
@@ -260,14 +261,25 @@ uint32_t run_motion_engine(enum mode selected_mode,int t,struct trapezoidal_ramp
     return selected_mode;
 }
 
-uint8_t force_transition(int argc, char *argv[]){ 
-  //TODO: Call run_transition
-return 0;
+uint8_t write_object(int argc, char *argv[]){ 
+  if(argc != 4)
+  {
+    LOG(CLI_LOG_CAT1, "write_object [Index] [SubIndex] [value]");
+    return 1;
+  }
+  uint16_t index = arg_to_int(argv[1]);
+  uint16_t subindex = arg_to_int(argv[2]);
+  int value = arg_to_int(argv[3]);
+
+  co_obj_t * obj = co_dev_find_obj(dev, index);
+	co_obj_set_val(obj, subindex,&value,sizeof(value));
+  return 0;
 }
+
 uint8_t set_target_position(int argc, char *argv[]){ 
    LOG(CLI_LOG_CAT1, "Setting new target position");
   set_mode(profile_position_mode,dev);
-  int value = arg_to_int(argv);
+  int value = arg_to_int(argv[1]);
   co_obj_t * obj = co_dev_find_obj(dev, 0x607A);
 	int bytes_written = co_obj_set_val(obj, 00,&value, sizeof(value));
   if (bytes_written){
@@ -282,7 +294,7 @@ uint8_t set_target_position(int argc, char *argv[]){
 uint8_t set_rpm(int argc, char *argv[]){
    LOG(CLI_LOG_CAT1, "Setting new target velocity");
   set_mode(profile_velocity_mode,dev);
-  int value = arg_to_int(argv);
+  int value = arg_to_int(argv[1]);
   co_obj_t * obj = co_dev_find_obj(dev, 0x60FF);
   int bytes_written = co_obj_set_val(obj, 00,&value, sizeof(value));
 
@@ -437,6 +449,7 @@ int main(void)
   CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
   CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
   CLI_ADD_CMD("get_io", "Read hw in/outputs", get_io);
+  CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -469,7 +482,8 @@ int main(void)
       //HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     set_statusword(dev);
-    struct trapezoidal_ramp params;
+    struct trapezoidal_ramp params; // TODO: Should be never unititialized. 
+                                    // Either read from cli or FRAM!
     if (get_state() == drive_state_operation_enabled)
     {
       t++;
