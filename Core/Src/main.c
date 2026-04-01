@@ -482,7 +482,14 @@ int main(void)
       //HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
     set_statusword(dev);
-    struct trapezoidal_ramp params; // TODO: Should be never unititialized. 
+    struct trapezoidal_ramp params;
+    /*
+    1 revolution (200 Steps) per second
+    lead: 150 mm in 10 seconds
+    */
+    params.a_max = 1000; // [mm / s*E-2]
+    params.v_max= 3000; // [mm / s]
+    // TODO: Should be never unititialized. 
                                     // Either read from cli or FRAM!
     if (get_state() == drive_state_operation_enabled)
     {

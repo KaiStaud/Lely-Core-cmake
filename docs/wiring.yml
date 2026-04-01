@@ -19,6 +19,13 @@ connectors:
     type: PinHeader
     subtype: female
     pinlabels: [TXC,RXC,GND,VCC]
+
+  BATTERY:
+    type: JST-PH
+    pinlabels: [V+,V-]
+  FUELGAUGE:
+    type: ScrewTerminal
+    pinlabels: [VBAT,PWGND,VSYS,GND1]    
   BOOST:
     type: ScrewTerminal
     pinlabels: [VIN,GND1,12V,GND2]
@@ -46,6 +53,21 @@ cables:
     wirecount: 4
     shield: false
     colors: [GN, YE, BU,RD]
+  W4:
+    gauge: 0.25 mm2
+    length: 0.2
+    color_code: DIN
+    wirecount: 2  
+  W5:
+    gauge: 0.25 mm2
+    length: 0.2
+    color_code: DIN
+    wirecount: 2  
+  W6:
+    gauge: 0.25 mm2
+    length: 0.2
+    color_code: DIN
+    wirecount: 2    
 connections:
 # FRAM Bundle
   -
@@ -64,6 +86,20 @@ connections:
     - CN10: [1,2,6,5]
     - W3: [1,2,3,4]
     - CAN: [1,2,3,4]
+
+# Stepper Connections:   
+  -
+    - BATTERY: [1,2]
+    - W6: [1,2]
+    - FUELGAUGE: [1,2]
+  -
+    - FUELGAUGE: [3,4]
+    - W5: [1,2]
+    - BOOST: [1,2]
+  - 
+    - BOOST: [3,4]
+    - W4: [1,2]
+    - STEPPER: [1,2]
   # GND auf Schirm legen
   -
     - CN9: 5
