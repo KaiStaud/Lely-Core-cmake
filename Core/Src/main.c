@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "dma.h"
 #include "fdcan.h"
 #include "rtc.h"
@@ -187,6 +188,7 @@ co_dev_t *dev;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 static int on_can_send(const struct can_msg *msg, void *data);
 static void on_nmt_cs(co_nmt_t *nmt, co_unsigned8_t cs, void *data);
@@ -401,9 +403,9 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  /*
   can_init(125);
   trace("SW-Version %s (Commit %s, build on %s)",PROJECT_VERSION,APP_GIT_HASH,BUILD_TIME);
-  // Initialize the CAN network interface.
   net = can_net_create();
   assert(net);
   can_net_set_send_func(net, &on_can_send, NULL);
@@ -423,9 +425,6 @@ int main(void)
   co_sub_set_dn_ind(co_dev_find_sub(dev, 0x2000, 0x00), &on_dn_2000_00, NULL);
   // Set the upload (SDO read) indication function for sub-object 2001:01.
   co_sub_set_up_ind(co_dev_find_sub(dev, 0x2001, 0x00), &on_up_2001_00, NULL);
-  //	co_sub_set_up_ind(co_dev_find_sub(dev,0x60FD,0x00),&on_up_60FD_00,NULL);
-  //	  co_nmt_on_sync(nmt, 1);
-  //co_nmt_set_sync_ind(nmt, sync_indication, NULL);
   co_tpdo_t* tpdo_1 = co_tpdo_create(net, dev, 1);
   if (tpdo_1 == NULL) {
     trace("tdpo 1 not created");
@@ -466,7 +465,17 @@ int main(void)
   CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
   CLI_ADD_CMD("get_io", "Read hw in/outputs", get_io);
   CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
+  */
   /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();  /* Call init function for freertos objects (in cmsis_os2.c) */
+  MX_FREERTOS_Init();
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
