@@ -46,15 +46,38 @@
 #include "../bsp/can.h"
 #include "rtc.h"
 #include "tim.h"
+#include "usart.h"
 #include "version.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+#define CLI_ADDITIONAL_LOG_CATEGORIES \
+	X(CAT1, true) \
+	X(CAT2, false) \
+	X(CAT3, true) 
 
-static int on_can_send(const struct can_msg* msg, void* data);
-static void on_nmt_cs(co_nmt_t* nmt, co_unsigned8_t cs, void* data);
-static void on_time(co_time_t* time, const struct timespec* tp, void* data);
+#include "../shell/inc/sys_command_line.h"
+
+enum homing_progress {
+	homing_disabled = 0,
+	opmode_configured = 1,
+	homing_profile_configured = 2,
+	homing_started = 3,
+	homing_active = 4,
+	homing_done = 5
+};
+
+enum mode {
+no_mode_selected =0,
+profile_position_mode = 1,
+profile_velocity_mode = 3 ,
+profile_torque_mode = 4,
+homing = 6,
+cyclic_position_mode = 8,
+cyclic_velocity_mode = 9,
+cyclic_torque_mode = 10
+};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -72,6 +95,8 @@ static void on_time(co_time_t* time, const struct timespec* tp, void* data);
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+co_dev_t* dev;
+int rpm = 0;
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -79,12 +104,6 @@ osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
     .name = "defaultTask",
     .priority = (osPriority_t)osPriorityNormal,
-    .stack_size = 128 * 4};
-/* Definitions for disableTask */
-osThreadId_t disableTaskHandle;
-const osThreadAttr_t disableTask_attributes = {
-    .name = "disableTask",
-    .priority = (osPriority_t)osPriorityLow,
     .stack_size = 128 * 4};
 /* Definitions for enableTask */
 osThreadId_t enableTaskHandle;
@@ -98,16 +117,40 @@ const osThreadAttr_t canopenTask_attributes = {
     .name = "canopenTask",
     .priority = (osPriority_t)osPriorityLow,
     .stack_size = 128 * 8};
+/* Definitions for cia402Task */
+osThreadId_t cia402TaskHandle;
+const osThreadAttr_t cia402Task_attributes = {
+    .name = "cia402Task",
+    .priority = (osPriority_t)osPriorityLow,
+    .stack_size = 128 * 8};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
+static void on_time(co_time_t* time, const struct timespec* tp, void* data);
+static void on_nmt_cs(co_nmt_t* nmt, co_unsigned8_t cs, void* data);
+static int on_can_send(const struct can_msg* msg, void* data);
+double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f);
+uint8_t set_rpm(int argc, char* argv[]);
+uint8_t set_target_position(int argc, char* argv[]);
+uint8_t write_object(int argc, char* argv[]);
+uint32_t run_motion_engine(enum mode selected_mode, int t,
+                           struct trapezoidal_ramp params);
+uint32_t get_mode(co_dev_t* dev);
+uint8_t set_mode(enum mode p_mode, co_dev_t* dev);
+int arg_to_int(const char* arg);
+void set_statusword(co_dev_t* dev);
+enum homing_progress try_homing(co_dev_t* dev);
+uint32_t co_hal_read_digital_inputs();
+double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f);
+uint8_t set_mode(enum mode p_mode,co_dev_t* dev);
+uint32_t get_mode(co_dev_t* dev);
 
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void* argument);
-void DisableTask(void* argument);
 void EnableTask(void* argument);
 void CANOpenTask(void* argument);
+void Cia402Task(void* argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -142,14 +185,14 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle =
       osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* creation of disableTask */
-  disableTaskHandle = osThreadNew(DisableTask, NULL, &disableTask_attributes);
-
   /* creation of enableTask */
   enableTaskHandle = osThreadNew(EnableTask, NULL, &enableTask_attributes);
 
   /* creation of canopenTask */
   canopenTaskHandle = osThreadNew(CANOpenTask, NULL, &canopenTask_attributes);
+
+  /* creation of cia402Task */
+  cia402TaskHandle = osThreadNew(Cia402Task, NULL, &cia402Task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -169,6 +212,12 @@ void MX_FREERTOS_Init(void) {
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void* argument) {
   /* USER CODE BEGIN StartDefaultTask */
+
+  CLI_INIT(&huart2);	
+  CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
+  CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
+  CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
+
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   int cnt = 0;
   /* Infinite loop */
@@ -179,25 +228,10 @@ void StartDefaultTask(void* argument) {
     gamma_corrected_dutycycle(1000, cnt);
     cnt++;
     // Disable Interrupt an poll can rx buffer
+    //CLI_RUN();
     osDelay(1);
   }
   /* USER CODE END StartDefaultTask */
-}
-
-/* USER CODE BEGIN Header_DisableTask */
-/**
- * @brief Function implementing the disableTask thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_DisableTask */
-void DisableTask(void* argument) {
-  /* USER CODE BEGIN DisableTask */
-  /* Infinite loop */
-  for (;;) {
-    osDelay(1);
-  }
-  /* USER CODE END DisableTask */
 }
 
 /* USER CODE BEGIN Header_EnableTask */
@@ -230,7 +264,6 @@ void CANOpenTask(void* argument) {
   can_net_t* net;
   // Generated by `dcf2c --no-strings lpc17xx.dcf lpc17xx_sdev -o src/sdev.c`
   extern const struct co_sdev lpc17xx_sdev;
-  co_dev_t* dev;
   struct timespec now = {0, 0};
 
   can_init(125);
@@ -288,6 +321,42 @@ void CANOpenTask(void* argument) {
   /* USER CODE END CANOpenTask */
 }
 
+/* USER CODE BEGIN Header_Cia402Task */
+/**
+ * @brief Function implementing the cia402Task thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_Cia402Task */
+void Cia402Task(void* argument) {
+  /* USER CODE BEGIN Cia402Task */
+  int t = 0;
+  /* Infinite loop */
+  for (;;) {
+    set_statusword(dev);
+    struct trapezoidal_ramp params;
+    /*
+    1 revolution (200 Steps) per second
+    lead: 150 mm in 10 seconds
+    */
+    params.a_max = 100;  // [mm / s*E-2]
+    params.v_max = 300;  // [mm / s]
+    // TODO: Should be never unititialized.
+    // Either read from cli or FRAM!
+    if (get_state() == drive_state_operation_enabled) {
+      t++;
+    } else {
+      t = 0;
+    }
+    enum mode modes_of_operation = get_mode(dev);
+    rpm = run_motion_engine(modes_of_operation, t, params);
+    //gamma_corrected_dutycycle(params.v_max, rpm);
+
+    osDelay(1);
+  }
+  /* USER CODE END Cia402Task */
+}
+
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
 static int on_can_send(const struct can_msg* msg, void* data) {
@@ -328,5 +397,189 @@ static void on_time(co_time_t* time, const struct timespec* tp, void* data) {
   // network.
   clock_settime(CLOCK_REALTIME, tp);
 }
+
+double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f) {
+  double x = (double)f / (double)f_max;
+  double dutycycle = pow(x, 2.0) * 500;
+  // dutycycle = dutycycle  * 500;
+  TIM2->CCR1 = (uint32_t)dutycycle;
+  return dutycycle;
+}
+
+uint32_t co_hal_read_digital_inputs() {
+  digital_inputs io;
+  io.positive_limit_switch = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+  uint32_t entry_60FD_00 = read_inputs(io);
+  return entry_60FD_00;
+}
+
+enum homing_progress try_homing(co_dev_t* dev) {
+  static enum homing_progress progress = homing_disabled;
+  switch (progress) {
+    case homing_disabled:
+      uint32_t mode = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6060, 0));
+      if (mode == 0x6) {
+        progress = opmode_configured;
+      }
+      break;
+    case opmode_configured:
+      uint32_t homing_profile =
+          co_sub_get_val_u32(co_dev_find_sub(dev, 0x6098, 0));
+      if (homing_profile == 0x1) {
+        progress = homing_profile_configured;
+      }
+      break;
+    case homing_profile_configured:
+      mode = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6060, 0));
+      if (mode == 0xF6) {
+        progress = homing_started;
+      }
+      break;
+    case homing_started:
+      trace("Homing:Start Homing");
+      trace("Homing:Acceleration=%lu, Velocity=%lu",
+            co_sub_get_val_u32(co_dev_find_sub(dev, 0x609A, 0)),
+            co_sub_get_val_u32(co_dev_find_sub(dev, 0x6099, 0)));
+      HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+      HAL_Delay(3000);
+      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+      HAL_Delay(2);
+      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+      uint8_t pData[] = {0, 0xD0, 0, 0, 0x21, 0x00, 0x00, 0x00, 0xb8};
+      //			  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData),
+      // 10);
+      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+      HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+      progress = homing_active;
+      break;
+    case homing_active:
+      if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)) {
+        progress = homing_done;
+        trace("Homing: Negative Endswitch triggered. Disabling drive");
+      }
+      break;
+    case homing_done:
+      HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+      uint8_t pDisableCmd[] = {0, 0xA8};
+      //			  HAL_SPI_Transmit(&hspi1, pDisableCmd,
+      // sizeof(pDisableCmd), 10);
+      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+
+      break;
+  }
+  return progress;
+}
+
+void set_statusword(co_dev_t* dev) {
+  co_unsigned32_t val = co_hal_read_digital_inputs();
+  //		co_sub_set_val_u32(co_dev_find_sub(dev, 0x60FD, 0),&val);
+  // Controlword
+  co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
+  uint32_t ctrl_word = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6040, 0));
+  // Statusword
+  run_transition(ctrl_word);
+  uint16_t statusword = get_statusword_lowbyte(get_state());
+  obj = co_dev_find_obj(dev, 0x6041);
+  co_obj_set_val(obj, 0x00, &statusword, sizeof(val));
+}
+
+int arg_to_int(const char* arg) {
+  char* p;
+  errno = 0;
+  long conv = strtol(arg, &p, 0);
+
+  // Check for errors: e.g., the string does not represent an integer
+  // or the integer is larger than int
+  if (errno != 0 || *p != '\0' || conv > INT_MAX || conv < INT_MIN) {
+    // Put here the handling of the error, like exiting the program with
+    // an error message
+  } else {
+    return conv;
+  }
+return 0;
+}
+
+uint8_t set_mode(enum mode p_mode, co_dev_t* dev) {
+  co_obj_t* obj = co_dev_find_obj(dev, 0x6060);
+  uint32_t value = (uint32_t)p_mode;
+  return co_obj_set_val_u32(obj, 0x00, value);
+}
+
+uint32_t get_mode(co_dev_t* dev) {
+  co_obj_t* obj = co_dev_find_obj(dev, 0x6060);
+  return co_obj_get_val_u32(obj, 0);
+}
+
+uint32_t run_motion_engine(enum mode selected_mode, int t,
+                           struct trapezoidal_ramp params) {
+  if ((selected_mode == profile_position_mode) ||
+      (selected_mode == cyclic_position_mode)) {
+    // TODO: Return Error "struct params uninitialized"
+    const co_obj_t* obj = co_dev_find_obj(dev, 0x607A);
+    move_to(&params, co_obj_get_val_u32(obj, 0));
+    double rpm = ramp_update(&params, t);
+    return rpm;
+  } else if ((selected_mode == profile_velocity_mode) ||
+             (selected_mode == cyclic_velocity_mode)) {
+    const co_obj_t* obj = co_dev_find_obj(dev, 0x60FF);
+    return co_obj_get_val_u32(obj, 0);
+  } else if (selected_mode == homing) {
+    try_homing(dev);
+  } else if (selected_mode == no_mode_selected) {
+  } else {
+    LOG(CLI_LOG_CAT1, "Mode %i is not implemented", selected_mode);
+  }
+  return 0;
+}
+
+uint8_t write_object(int argc, char* argv[]) {
+  if (argc != 4) {
+    LOG(CLI_LOG_CAT1, "write_object [Index] [SubIndex] [value]");
+    return 1;
+  }
+  uint16_t index = arg_to_int(argv[1]);
+  uint16_t subindex = arg_to_int(argv[2]);
+  int value = arg_to_int(argv[3]);
+
+  co_obj_t* obj = co_dev_find_obj(dev, index);
+  co_obj_set_val(obj, subindex, &value, sizeof(value));
+  return 0;
+}
+
+uint8_t set_target_position(int argc, char* argv[]) {
+  LOG(CLI_LOG_CAT1, "Setting new target position");
+  set_mode(profile_position_mode, dev);
+  int value = arg_to_int(argv[1]);
+  co_obj_t* obj = co_dev_find_obj(dev, 0x607A);
+  int bytes_written = co_obj_set_val(obj, 00, &value, sizeof(value));
+  if (bytes_written) {
+    LOG(CLI_LOG_CAT1, "New target position %i", value);
+    return 0;
+  } else {
+    LOG(CLI_LOG_CAT1, "Failed to write to OD: Error %s", errno2str(get_errc()));
+    return 1;
+  }
+};
+uint8_t set_rpm(int argc, char* argv[]) {
+  LOG(CLI_LOG_CAT1, "Setting new target velocity");
+  set_mode(profile_velocity_mode, dev);
+  int value = arg_to_int(argv[1]);
+  co_obj_t* obj = co_dev_find_obj(dev, 0x60FF);
+  int bytes_written = co_obj_set_val(obj, 00, &value, sizeof(value));
+
+  if (bytes_written) {
+    LOG(CLI_LOG_CAT1, "New target velocity %i", value);
+    return 0;
+  } else {
+    LOG(CLI_LOG_CAT1, "Failed to write to OD: Error %s", errno2str(get_errc()));
+    return 1;
+  }
+  return 0;
+};
+uint8_t get_io(int argc, char* argv[]) {
+  return 0;
+  ;
+};
 
 /* USER CODE END Application */
