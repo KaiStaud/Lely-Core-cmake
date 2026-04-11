@@ -19,9 +19,9 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os.h"
-#include "main.h"
 #include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -102,27 +102,31 @@ int rpm = 0;
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
-    .name = "defaultTask",
-    .priority = (osPriority_t)osPriorityNormal,
-    .stack_size = 128 * 4};
+  .name = "defaultTask",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 128 * 4
+};
 /* Definitions for enableTask */
 osThreadId_t enableTaskHandle;
 const osThreadAttr_t enableTask_attributes = {
-    .name = "enableTask",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 128 * 4};
+  .name = "enableTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
 /* Definitions for canopenTask */
 osThreadId_t canopenTaskHandle;
 const osThreadAttr_t canopenTask_attributes = {
-    .name = "canopenTask",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 128 * 8};
+  .name = "canopenTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 256 * 4
+};
 /* Definitions for cia402Task */
 osThreadId_t cia402TaskHandle;
 const osThreadAttr_t cia402Task_attributes = {
-    .name = "cia402Task",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 128 * 8};
+  .name = "cia402Task",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 256 * 4
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -147,18 +151,18 @@ uint32_t get_mode(co_dev_t* dev);
 
 /* USER CODE END FunctionPrototypes */
 
-void StartDefaultTask(void* argument);
-void EnableTask(void* argument);
-void CANOpenTask(void* argument);
-void Cia402Task(void* argument);
+void StartDefaultTask(void *argument);
+void EnableTask(void *argument);
+void CANOpenTask(void *argument);
+void Cia402Task(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
 
@@ -182,8 +186,7 @@ void MX_FREERTOS_Init(void) {
 
   /* Create the thread(s) */
   /* creation of defaultTask */
-  defaultTaskHandle =
-      osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of enableTask */
   enableTaskHandle = osThreadNew(EnableTask, NULL, &enableTask_attributes);
@@ -201,6 +204,7 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
   /* USER CODE END RTOS_EVENTS */
+
 }
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -210,13 +214,9 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void* argument) {
+void StartDefaultTask(void *argument)
+{
   /* USER CODE BEGIN StartDefaultTask */
-
-  CLI_INIT(&huart2);	
-  CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
-  CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
-  CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   int cnt = 0;
@@ -241,8 +241,10 @@ void StartDefaultTask(void* argument) {
  * @retval None
  */
 /* USER CODE END Header_EnableTask */
-void EnableTask(void* argument) {
+void EnableTask(void *argument)
+{
   /* USER CODE BEGIN EnableTask */
+  
   /* Infinite loop */
   for (;;) {
     osDelay(1);
@@ -257,7 +259,8 @@ void EnableTask(void* argument) {
  * @retval None
  */
 /* USER CODE END Header_CANOpenTask */
-void CANOpenTask(void* argument) {
+void CANOpenTask(void *argument)
+{
   /* USER CODE BEGIN CANOpenTask */
 
   co_nmt_t* nmt;
@@ -299,6 +302,12 @@ void CANOpenTask(void* argument) {
     trace("could not start rpdo");
   }
 
+
+  CLI_INIT(&huart2);	
+  CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
+  CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
+  CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
+
   /* Infinite loop */
   for (;;) {
     clock_gettime(1, &now);
@@ -313,9 +322,9 @@ void CANOpenTask(void* argument) {
     int n_frames = can_recv(&msg, 1);
     if (n_frames != 0) {
       can_net_recv(net, &msg);
-      // HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
     }
 
+    CLI_RUN();
     osDelay(1);
   }
   /* USER CODE END CANOpenTask */
@@ -328,7 +337,8 @@ void CANOpenTask(void* argument) {
  * @retval None
  */
 /* USER CODE END Header_Cia402Task */
-void Cia402Task(void* argument) {
+void Cia402Task(void *argument)
+{
   /* USER CODE BEGIN Cia402Task */
   int t = 0;
   /* Infinite loop */
@@ -583,3 +593,4 @@ uint8_t get_io(int argc, char* argv[]) {
 };
 
 /* USER CODE END Application */
+
