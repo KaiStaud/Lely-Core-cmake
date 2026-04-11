@@ -21,7 +21,6 @@
 #include "dma.h"
 #include "fdcan.h"
 #include "rtc.h"
-#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -33,6 +32,7 @@
 #include <limits.h>  // for INT_MAX, INT_MIN
 #include <stdlib.h>  // for strtol
 #include <stdint.h>
+#include <math.h>
 
 #include <lely/co/co.h>
 #include <lely/co/nmt.h>
@@ -129,7 +129,7 @@ enum homing_progress try_homing(co_dev_t *dev)
 			  HAL_Delay(2);
 			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
 			  uint8_t pData[]={0,0xD0,0,0,0x21,0x00,0x00,0x00,0xb8};
-			  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData), 10);
+//			  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData), 10);
 			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
 			  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
 			  progress = homing_active;
@@ -145,7 +145,7 @@ enum homing_progress try_homing(co_dev_t *dev)
 			  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
 			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
 			  uint8_t pDisableCmd[]={0,0xA8};
-			  HAL_SPI_Transmit(&hspi1, pDisableCmd, sizeof(pDisableCmd), 10);
+//			  HAL_SPI_Transmit(&hspi1, pDisableCmd, sizeof(pDisableCmd), 10);
 			  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
 
 			  break;
@@ -243,11 +243,14 @@ uint32_t run_motion_engine(enum mode selected_mode,int t,struct trapezoidal_ramp
     if((selected_mode == profile_position_mode) || (selected_mode == cyclic_position_mode))
     {
         // TODO: Return Error "struct params uninitialized"
-        return ramp_update(&params,t);
+        const co_obj_t * obj = co_dev_find_obj(dev, 0x607A);
+        move_to(&params,co_obj_get_val_u32(obj,0));
+        double rpm =ramp_update(&params,t);
+        return rpm;
     }
     else if((selected_mode == profile_velocity_mode) || (selected_mode == cyclic_velocity_mode))
     {
-        co_obj_t * obj = co_dev_find_obj(dev, 0x60FF);
+        const co_obj_t * obj = co_dev_find_obj(dev, 0x60FF);
         return co_obj_get_val_u32(obj, 0);
     }
     else if(selected_mode == homing)
@@ -258,7 +261,7 @@ uint32_t run_motion_engine(enum mode selected_mode,int t,struct trapezoidal_ramp
     else{
          LOG(CLI_LOG_CAT1, "Mode %i is not implemented",selected_mode);
     }
-    return selected_mode;
+    return 0;
 }
 
 uint8_t write_object(int argc, char *argv[]){ 
@@ -309,6 +312,14 @@ uint8_t set_rpm(int argc, char *argv[]){
   return 0;};
 uint8_t get_io(int argc, char *argv[]){return 0;;};
 
+double gamma_corrected_dutycycle(uint32_t f_max,uint32_t f)
+{
+  double x = (double)f / (double)f_max;
+  double dutycycle = pow(x, 2.0) * 500;
+  //dutycycle = dutycycle  * 500;
+  TIM2->CCR1 = (uint32_t)dutycycle;
+  return dutycycle;
+}
 // Variables for to monitor with STM32CubeMonitor.
 // Need to be global!
 
@@ -317,7 +328,7 @@ uint32_t left_endstop_active;
 uint32_t right_endstop_active;
 enum mode modes_of_operation;
 int t=0;
-
+double d = 0;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -388,7 +399,6 @@ int main(void)
   MX_USART2_UART_Init();
   MX_RTC_Init();
   MX_TIM2_Init();
-  MX_SPI1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   can_init(125);
@@ -433,15 +443,21 @@ int main(void)
   }
   trace("Press PB1 to continue to start CanOpen loop");
   trace("Sending dummy data [7F 12 34");
+  int cnt=0;
+  HAL_TIM_PWM_Start(&htim2,TIM_CHANNEL_1);
+
   while (!HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)) {
     struct can_msg msg;
     msg.len = 2;
     msg.data[1] = 0x12;
     msg.data[2] = 0x34;
-    can_send(&msg, 3);
-    HAL_Delay(500);
-    //HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-
+    HAL_Delay(1);
+    if(cnt>1000){
+      cnt=0;  
+      can_send(&msg,3);
+    }
+    d = gamma_corrected_dutycycle(1000,cnt);
+    cnt++;
     // Disable Interrupt an poll can rx buffer
   }
   trace("Running CANOpen Application");
@@ -487,8 +503,8 @@ int main(void)
     1 revolution (200 Steps) per second
     lead: 150 mm in 10 seconds
     */
-    params.a_max = 1000; // [mm / s*E-2]
-    params.v_max= 3000; // [mm / s]
+    params.a_max = 100; // [mm / s*E-2]
+    params.v_max= 300; // [mm / s]
     // TODO: Should be never unititialized. 
                                     // Either read from cli or FRAM!
     if (get_state() == drive_state_operation_enabled)
@@ -500,6 +516,10 @@ int main(void)
     }
     enum mode modes_of_operation = get_mode(dev);
     rpm = run_motion_engine(modes_of_operation,t,params);
+    if (rpm > 0){
+             LOG(CLI_LOG_CAT1, "i=%lu, f=%lu",t,rpm);
+
+        }
     CLI_RUN();
 
     HAL_Delay(1);
