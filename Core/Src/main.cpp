@@ -17,6 +17,7 @@
  */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+extern "C"{
 #include "main.h"
 #include "cmsis_os.h"
 #include "dma.h"
@@ -25,32 +26,11 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+}
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include <errno.h>   // for errno
-#include <limits.h>  // for INT_MAX, INT_MIN
-#include <stdlib.h>  // for strtol
-#include <stdint.h>
-#include <math.h>
-
-#include <lely/co/co.h>
-#include <lely/co/nmt.h>
-#include <lely/co/rpdo.h>
-#include <lely/co/sdev.h>
-#include <lely/co/sdo.h>
-#include <lely/co/time.h>
-#include <lely/co/tpdo.h>
-#include <lely/can/net.h>
-
-#include "version.h"
-#include "../bsp/can.h"
-#include <libcia402/digital_inputs.h>
-#include <libcia402/homing.h>
-#include <libcia402/statemachine.h>
-
-#include <trapezoidal_ramp.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -82,7 +62,7 @@ int __io_putchar(int ch) {
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void MX_FREERTOS_Init(void);
+//void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
 // dn : master to slave
 // up : slave to 

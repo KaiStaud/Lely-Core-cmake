@@ -96,7 +96,7 @@ cyclic_torque_mode = 10
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
 co_dev_t* dev;
-int rpm = 0;
+double rpm = 0, t_a = 0, t_c = 0;
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -137,7 +137,7 @@ double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f);
 uint8_t set_rpm(int argc, char* argv[]);
 uint8_t set_target_position(int argc, char* argv[]);
 uint8_t write_object(int argc, char* argv[]);
-uint32_t run_motion_engine(enum mode selected_mode, int t,
+double run_motion_engine(enum mode selected_mode, int t,
                            struct trapezoidal_ramp params);
 uint32_t get_mode(co_dev_t* dev);
 uint8_t set_mode(enum mode p_mode, co_dev_t* dev);
@@ -189,7 +189,7 @@ void MX_FREERTOS_Init(void) {
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of enableTask */
-  enableTaskHandle = osThreadNew(EnableTask, NULL, &enableTask_attributes);
+  //enableTaskHandle = osThreadNew(EnableTask, NULL, &enableTask_attributes);
 
   /* creation of canopenTask */
   canopenTaskHandle = osThreadNew(CANOpenTask, NULL, &canopenTask_attributes);
@@ -258,6 +258,7 @@ void EnableTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
+volatile bool canopen_initialized = false;
 /* USER CODE END Header_CANOpenTask */
 void CANOpenTask(void *argument)
 {
@@ -307,7 +308,7 @@ void CANOpenTask(void *argument)
   CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
   CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
   CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
-
+canopen_initialized = true;
   /* Infinite loop */
   for (;;) {
     clock_gettime(1, &now);
@@ -341,16 +342,20 @@ void Cia402Task(void *argument)
 {
   /* USER CODE BEGIN Cia402Task */
   int t = 0;
+  struct trapezoidal_ramp params = {};
+
+  while (!canopen_initialized){};
   /* Infinite loop */
   for (;;) {
     set_statusword(dev);
-    struct trapezoidal_ramp params;
     /*
     1 revolution (200 Steps) per second
     lead: 150 mm in 10 seconds
     */
-    params.a_max = 100;  // [mm / s*E-2]
-    params.v_max = 300;  // [mm / s]
+    params.a_max = 0.002;  
+    params.v_max = 6.0;  
+    t_a = params.t_acc;
+    t_c = params.t_const;
     // TODO: Should be never unititialized.
     // Either read from cli or FRAM!
     if (get_state() == drive_state_operation_enabled) {
@@ -521,7 +526,7 @@ uint32_t get_mode(co_dev_t* dev) {
   return co_obj_get_val_u32(obj, 0);
 }
 
-uint32_t run_motion_engine(enum mode selected_mode, int t,
+double run_motion_engine(enum mode selected_mode, int t,
                            struct trapezoidal_ramp params) {
   if ((selected_mode == profile_position_mode) ||
       (selected_mode == cyclic_position_mode)) {

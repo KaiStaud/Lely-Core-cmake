@@ -76,6 +76,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/sdev.c
     Core/shell/src/sys_command_line.c 
     Core/shell/src/sys_queue.c 
+    Core/Src/CLinearProfile.cpp
+    Core/Src/CConstantVelocity.cpp
 )
 
 # Add include paths
