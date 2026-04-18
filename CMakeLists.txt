@@ -50,7 +50,8 @@ else()
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libmotion)
 endif()
 # Create an executable object type
-add_executable(${CMAKE_PROJECT_NAME})
+add_executable(${CMAKE_PROJECT_NAME}
+    Core/Src/cli_handlers.c)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
@@ -74,18 +75,16 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/bsp/ring_buffer.c
     Core/Src/stm32_time.c
     Core/Src/sdev.c
-    Core/shell/src/sys_command_line.c 
-    Core/shell/src/sys_queue.c 
-    Core/Src/CLinearProfile.cpp
-    Core/Src/CConstantVelocity.cpp
-)
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/FreeRTOS_CLI.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/app_cli.c
+    )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     ${LELY_INCLUDE_DIRS}
-    external/libmotion/constant_velocity
-    external/libmotion/trapezoidal_ramp
+    external/libmotion/LinearProfiles
+    external/libmotion/TrapezoidalRamp
     external
     )
 
@@ -108,6 +107,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-util  
     lely-libc  
     libcia402
-    motion_tp_ramp
-    motion_constant_velocity
+    motion_linear_profiles
+#    motion_constant_velocity
     )

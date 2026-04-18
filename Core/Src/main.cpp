@@ -43,11 +43,6 @@ extern "C"{
 #define trace(...) \
 	diag_at(DIAG_DEBUG, 0, &(struct floc){ __FILE__, __LINE__, 0 }, \
 			__VA_ARGS__)
-
-int __io_putchar(int ch) {
-      HAL_UART_Transmit(&huart2, (uint8_t*) &ch, 1, 0xFFFF);
-      return ch;
-}
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -143,6 +138,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_UART_Receive_IT(&huart2, (uint8_t *)&huart2.Instance->RDR, 1);
   /*
   can_init(125);
   trace("SW-Version %s (Commit %s, build on %s)",PROJECT_VERSION,APP_GIT_HASH,BUILD_TIME);
@@ -200,11 +196,6 @@ mod
     // Disable Interrupt an poll can rx buffer
   }
   trace("Running CANOpen Application");
-  CLI_INIT(&huart2);	
-  CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
-  CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
-  CLI_ADD_CMD("get_io", "Read hw in/outputs", get_io);
-  CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
   */
   /* USER CODE END 2 */
 

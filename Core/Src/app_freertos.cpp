@@ -18,6 +18,9 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include <lely/can/net.hpp>
+
+extern "C" {
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
@@ -26,7 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <errno.h>  // for errno
-#include <lely/can/net.h>
+//#include <lely/can/net.hpp>
 #include <lely/co/co.h>
 #include <lely/co/nmt.h>
 #include <lely/co/rpdo.h>
@@ -40,24 +43,20 @@
 #include <limits.h>  // for INT_MAX, INT_MIN
 #include <math.h>
 #include <stdint.h>
-#include <stdlib.h>  // for strtol
-#include <trapezoidal_ramp.h>
 
 #include "../bsp/can.h"
 #include "rtc.h"
 #include "tim.h"
 #include "usart.h"
 #include "version.h"
+//#include <lely/util/diag.h>
+#include "extern_variables.h"
+#include "app_cli.h"
+}
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define CLI_ADDITIONAL_LOG_CATEGORIES \
-	X(CAT1, true) \
-	X(CAT2, false) \
-	X(CAT3, true) 
-
-#include "../shell/inc/sys_command_line.h"
 
 enum homing_progress {
 	homing_disabled = 0,
@@ -67,24 +66,12 @@ enum homing_progress {
 	homing_active = 4,
 	homing_done = 5
 };
-
-enum mode {
-no_mode_selected =0,
-profile_position_mode = 1,
-profile_velocity_mode = 3 ,
-profile_torque_mode = 4,
-homing = 6,
-cyclic_position_mode = 8,
-cyclic_velocity_mode = 9,
-cyclic_torque_mode = 10
-};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#include <lely/util/diag.h>
-#define trace(...) \
-  diag_at(DIAG_DEBUG, 0, &(struct floc){__FILE__, __LINE__, 0}, __VA_ARGS__)
+#define trace(...) NOP
+//  diag_at(DIAG_DEBUG, 0, &(struct floc){__FILE__, __LINE__, 0}, __VA_ARGS__)
 
 /* USER CODE END PD */
 
@@ -103,52 +90,43 @@ double rpm = 0, t_a = 0, t_c = 0;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .priority = (osPriority_t) osPriorityNormal,
-  .stack_size = 128 * 4
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal
 };
 /* Definitions for enableTask */
 osThreadId_t enableTaskHandle;
 const osThreadAttr_t enableTask_attributes = {
   .name = "enableTask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 128 * 4
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow
 };
 /* Definitions for canopenTask */
 osThreadId_t canopenTaskHandle;
 const osThreadAttr_t canopenTask_attributes = {
   .name = "canopenTask",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 256 * 4
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityLow
 };
 /* Definitions for cia402Task */
 osThreadId_t cia402TaskHandle;
 const osThreadAttr_t cia402Task_attributes = {
   .name = "cia402Task",
-  .priority = (osPriority_t) osPriorityLow,
-  .stack_size = 256 * 4
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityLow
 };
+/* USER CODE BEGIN Variables */
 
+/* USER CODE END Variables */
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 static void on_time(co_time_t* time, const struct timespec* tp, void* data);
 static void on_nmt_cs(co_nmt_t* nmt, co_unsigned8_t cs, void* data);
 static int on_can_send(const struct can_msg* msg, void* data);
 double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f);
-uint8_t set_rpm(int argc, char* argv[]);
-uint8_t set_target_position(int argc, char* argv[]);
-uint8_t write_object(int argc, char* argv[]);
-double run_motion_engine(enum mode selected_mode, int t,
-                           struct trapezoidal_ramp params);
-uint32_t get_mode(co_dev_t* dev);
-uint8_t set_mode(enum mode p_mode, co_dev_t* dev);
-int arg_to_int(const char* arg);
+//double run_motion_engine(mode selected_mode, int t,struct trapezoidal_ramp params);
 void set_statusword(co_dev_t* dev);
-enum homing_progress try_homing(co_dev_t* dev);
+//enum homing_progress try_homing(co_dev_t* dev);
 uint32_t co_hal_read_digital_inputs();
-double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f);
-uint8_t set_mode(enum mode p_mode,co_dev_t* dev);
-uint32_t get_mode(co_dev_t* dev);
-
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -196,7 +174,7 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of cia402Task */
   cia402TaskHandle = osThreadNew(Cia402Task, NULL, &cia402Task_attributes);
-
+  freeRTOSCliInit();
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -271,8 +249,7 @@ void CANOpenTask(void *argument)
   struct timespec now = {0, 0};
 
   can_init(125);
-  trace("SW-Version %s (Commit %s, build on %s)", PROJECT_VERSION, APP_GIT_HASH,
-        BUILD_TIME);
+  //trace("SW-Version %s (Commit %s, build on %s)", PROJECT_VERSION, APP_GIT_HASH,BUILD_TIME);
   net = can_net_create();
   assert(net);
   can_net_set_send_func(net, &on_can_send, NULL);
@@ -289,25 +266,26 @@ void CANOpenTask(void *argument)
   co_time_set_ind(co_nmt_get_time(nmt), &on_time, NULL);
   co_tpdo_t* tpdo_1 = co_tpdo_create(net, dev, 1);
   if (tpdo_1 == NULL) {
-    trace("tdpo 1 not created");
+    //trace("tdpo 1 not created");
   }
   co_rpdo_t* rpdo_1 = co_rpdo_create(net, dev, 1);
   if (rpdo_1 == NULL) {
-    trace("rdpo 1 not created");
+    //trace("rdpo 1 not created");
   }
 
   if (co_tpdo_start(tpdo_1) != 0) {
-    trace("could not start tpdo");
+    //trace("could not start tpdo");
   }
   if (co_rpdo_start(rpdo_1) != 0) {
-    trace("could not start rpdo");
+    //trace("could not start rpdo");
   }
 
-
+  /*
   CLI_INIT(&huart2);	
   CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
   CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
   CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
+  */
 canopen_initialized = true;
   /* Infinite loop */
   for (;;) {
@@ -325,7 +303,7 @@ canopen_initialized = true;
       can_net_recv(net, &msg);
     }
 
-    CLI_RUN();
+    //CLI_RUN();
     osDelay(1);
   }
   /* USER CODE END CANOpenTask */
@@ -342,7 +320,6 @@ void Cia402Task(void *argument)
 {
   /* USER CODE BEGIN Cia402Task */
   int t = 0;
-  struct trapezoidal_ramp params = {};
 
   while (!canopen_initialized){};
   /* Infinite loop */
@@ -352,10 +329,12 @@ void Cia402Task(void *argument)
     1 revolution (200 Steps) per second
     lead: 150 mm in 10 seconds
     */
+    /*
     params.a_max = 0.002;  
     params.v_max = 6.0;  
     t_a = params.t_acc;
     t_c = params.t_const;
+    */
     // TODO: Should be never unititialized.
     // Either read from cli or FRAM!
     if (get_state() == drive_state_operation_enabled) {
@@ -363,8 +342,8 @@ void Cia402Task(void *argument)
     } else {
       t = 0;
     }
-    enum mode modes_of_operation = get_mode(dev);
-    rpm = run_motion_engine(modes_of_operation, t, params);
+//    mode modes_of_operation = get_mode(dev);
+//    rpm = run_motion_engine(modes_of_operation, t, params);
     //gamma_corrected_dutycycle(params.v_max, rpm);
 
     osDelay(1);
@@ -427,15 +406,15 @@ uint32_t co_hal_read_digital_inputs() {
   uint32_t entry_60FD_00 = read_inputs(io);
   return entry_60FD_00;
 }
-
+/*
 enum homing_progress try_homing(co_dev_t* dev) {
   static enum homing_progress progress = homing_disabled;
   switch (progress) {
     case homing_disabled:
-      uint32_t mode = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6060, 0));
-      if (mode == 0x6) {
-        progress = opmode_configured;
-      }
+      if (co_sub_get_val_u32(co_dev_find_sub(dev, 0x6060, 0)) == 0x6)
+       {
+          progress = opmode_configured;
+       }
       break;
     case opmode_configured:
       uint32_t homing_profile =
@@ -451,8 +430,8 @@ enum homing_progress try_homing(co_dev_t* dev) {
       }
       break;
     case homing_started:
-      trace("Homing:Start Homing");
-      trace("Homing:Acceleration=%lu, Velocity=%lu",
+      //trace("Homing:Start Homing");
+      //trace("Homing:Acceleration=%lu, Velocity=%lu",
             co_sub_get_val_u32(co_dev_find_sub(dev, 0x609A, 0)),
             co_sub_get_val_u32(co_dev_find_sub(dev, 0x6099, 0)));
       HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
@@ -470,7 +449,7 @@ enum homing_progress try_homing(co_dev_t* dev) {
     case homing_active:
       if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)) {
         progress = homing_done;
-        trace("Homing: Negative Endswitch triggered. Disabling drive");
+        //trace("Homing: Negative Endswitch triggered. Disabling drive");
       }
       break;
     case homing_done:
@@ -480,12 +459,14 @@ enum homing_progress try_homing(co_dev_t* dev) {
       //			  HAL_SPI_Transmit(&hspi1, pDisableCmd,
       // sizeof(pDisableCmd), 10);
       HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-
+      break;
+    
+    default:
       break;
   }
   return progress;
 }
-
+*/
 void set_statusword(co_dev_t* dev) {
   co_unsigned32_t val = co_hal_read_digital_inputs();
   //		co_sub_set_val_u32(co_dev_find_sub(dev, 0x60FD, 0),&val);
@@ -499,33 +480,7 @@ void set_statusword(co_dev_t* dev) {
   co_obj_set_val(obj, 0x00, &statusword, sizeof(val));
 }
 
-int arg_to_int(const char* arg) {
-  char* p;
-  errno = 0;
-  long conv = strtol(arg, &p, 0);
-
-  // Check for errors: e.g., the string does not represent an integer
-  // or the integer is larger than int
-  if (errno != 0 || *p != '\0' || conv > INT_MAX || conv < INT_MIN) {
-    // Put here the handling of the error, like exiting the program with
-    // an error message
-  } else {
-    return conv;
-  }
-return 0;
-}
-
-uint8_t set_mode(enum mode p_mode, co_dev_t* dev) {
-  co_obj_t* obj = co_dev_find_obj(dev, 0x6060);
-  uint32_t value = (uint32_t)p_mode;
-  return co_obj_set_val_u32(obj, 0x00, value);
-}
-
-uint32_t get_mode(co_dev_t* dev) {
-  co_obj_t* obj = co_dev_find_obj(dev, 0x6060);
-  return co_obj_get_val_u32(obj, 0);
-}
-
+/*
 double run_motion_engine(enum mode selected_mode, int t,
                            struct trapezoidal_ramp params) {
   if ((selected_mode == profile_position_mode) ||
@@ -543,59 +498,9 @@ double run_motion_engine(enum mode selected_mode, int t,
     try_homing(dev);
   } else if (selected_mode == no_mode_selected) {
   } else {
-    LOG(CLI_LOG_CAT1, "Mode %i is not implemented", selected_mode);
+    //LOG(CLI_LOG_CAT1, "Mode %i is not implemented", selected_mode);
   }
   return 0;
 }
-
-uint8_t write_object(int argc, char* argv[]) {
-  if (argc != 4) {
-    LOG(CLI_LOG_CAT1, "write_object [Index] [SubIndex] [value]");
-    return 1;
-  }
-  uint16_t index = arg_to_int(argv[1]);
-  uint16_t subindex = arg_to_int(argv[2]);
-  int value = arg_to_int(argv[3]);
-
-  co_obj_t* obj = co_dev_find_obj(dev, index);
-  co_obj_set_val(obj, subindex, &value, sizeof(value));
-  return 0;
-}
-
-uint8_t set_target_position(int argc, char* argv[]) {
-  LOG(CLI_LOG_CAT1, "Setting new target position");
-  set_mode(profile_position_mode, dev);
-  int value = arg_to_int(argv[1]);
-  co_obj_t* obj = co_dev_find_obj(dev, 0x607A);
-  int bytes_written = co_obj_set_val(obj, 00, &value, sizeof(value));
-  if (bytes_written) {
-    LOG(CLI_LOG_CAT1, "New target position %i", value);
-    return 0;
-  } else {
-    LOG(CLI_LOG_CAT1, "Failed to write to OD: Error %s", errno2str(get_errc()));
-    return 1;
-  }
-};
-uint8_t set_rpm(int argc, char* argv[]) {
-  LOG(CLI_LOG_CAT1, "Setting new target velocity");
-  set_mode(profile_velocity_mode, dev);
-  int value = arg_to_int(argv[1]);
-  co_obj_t* obj = co_dev_find_obj(dev, 0x60FF);
-  int bytes_written = co_obj_set_val(obj, 00, &value, sizeof(value));
-
-  if (bytes_written) {
-    LOG(CLI_LOG_CAT1, "New target velocity %i", value);
-    return 0;
-  } else {
-    LOG(CLI_LOG_CAT1, "Failed to write to OD: Error %s", errno2str(get_errc()));
-    return 1;
-  }
-  return 0;
-};
-uint8_t get_io(int argc, char* argv[]) {
-  return 0;
-  ;
-};
-
+*/
 /* USER CODE END Application */
-
