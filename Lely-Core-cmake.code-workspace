@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../libmotion"
 		}
 	],
 	"extensions": {"recommendations": ["NanangP.vscode-wireviz-preview"]},

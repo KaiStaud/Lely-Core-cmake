@@ -43,7 +43,7 @@ void freeRTOSCliInit()
 {
 const osThreadAttr_t cmdLineTask_attributes = {
   .name = "cmdLineTask", // defined in cli_app.c
-  .stack_size = 128 * 4,
+  .stack_size = 128 * 8,
   .priority = (osPriority_t) osPriorityLow,
 };
   cmdLineTaskHandle = osThreadNew(vCommandConsoleTask, NULL, &cmdLineTask_attributes);
@@ -138,10 +138,10 @@ const CLI_Command_Definition_t xCommandList[] = {
         .cExpectedNumberOfParameters = 0 /* No parameters are expected. */
     },
     {
-        .pcCommand = "toggleled", /* The command string to type. */
-        .pcHelpString = "toggleled n:\r\n toggles led n amount of times\r\n\r\n",
-        .pxCommandInterpreter = cmd_toggle_led, /* The function to run. */
-        .cExpectedNumberOfParameters = 0 /* No parameters are expected. */
+        "stats",
+        "\r\nstats:\r\n Displays a table with the state of each FreeRTOS task.\r\n",
+        prvCommandTaskStats,
+        0
     },
     {
         .pcCommand = "GetIO", /* The command string to type. */
@@ -163,7 +163,7 @@ const CLI_Command_Definition_t xCommandList[] = {
     },   
     {
         .pcCommand = "writeObject",
-        .pcHelpString = "writeObject:\r\n Write CANOpen object\r\n\r\n",
+        .pcHelpString = "writeObject:\r\n Write object in dictionary\r\n\r\n",
         .pxCommandInterpreter = WriteObject,
         .cExpectedNumberOfParameters = 3
     },

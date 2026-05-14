@@ -26,7 +26,7 @@
 
 #ifndef COMMAND_INTERPRETER_H
 #define COMMAND_INTERPRETER_H
-#define configCOMMAND_INT_MAX_OUTPUT_SIZE		200
+#define configCOMMAND_INT_MAX_OUTPUT_SIZE		1024
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

@@ -49,16 +49,23 @@ else()
         GIT_TAG main
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libmotion)
 endif()
+
+
+if(EXISTS ${CMAKE_SOURCE_DIR}/external/libcia402/CMakeLists.txt)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/external/libcia402)
+else()
+    CPMAddPackage(
+        NAME libcia402
+        GITHUB_REPOSITORY KaiStaud/libcia402
+        GIT_TAG main
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libcia402)
+endif()
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
     Core/Src/cli_handlers.c)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
-
-# Add user sources
-add_subdirectory(external/libcia402)
-
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${LELY_CFLAGS_OTHER})
 
 
@@ -85,7 +92,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${LELY_INCLUDE_DIRS}
     external/libmotion/LinearProfiles
     external/libmotion/TrapezoidalRamp
-    external
+    external/libcia402/Statemachine
     )
 
 # Add project symbols (macros)
@@ -106,7 +113,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-can  
     lely-util  
     lely-libc  
-    libcia402
+    cia402
     motion_linear_profiles
 #    motion_constant_velocity
     )

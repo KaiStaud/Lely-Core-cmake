@@ -37,9 +37,6 @@ extern "C" {
 #include <lely/co/sdo.h>
 #include <lely/co/time.h>
 #include <lely/co/tpdo.h>
-#include <libcia402/digital_inputs.h>
-#include <libcia402/homing.h>
-#include <libcia402/statemachine.h>
 #include <limits.h>  // for INT_MAX, INT_MIN
 #include <math.h>
 #include <stdint.h>
@@ -53,19 +50,12 @@ extern "C" {
 #include "extern_variables.h"
 #include "app_cli.h"
 }
+#include "Statemachine.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-enum homing_progress {
-	homing_disabled = 0,
-	opmode_configured = 1,
-	homing_profile_configured = 2,
-	homing_started = 3,
-	homing_active = 4,
-	homing_done = 5
-};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -319,12 +309,18 @@ canopen_initialized = true;
 void Cia402Task(void *argument)
 {
   /* USER CODE BEGIN Cia402Task */
+  cia402::statemachine::SlaveStatemachine statemachine;
   int t = 0;
 
   while (!canopen_initialized){};
   /* Infinite loop */
   for (;;) {
-    set_statusword(dev);
+  co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
+  uint32_t ctrl_word = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6040, 0));
+  auto drive_state = statemachine.HandleControlWord(ctrl_word);
+  uint16_t statusword = statemachine.GetStatuswordLowbyte(drive_state);
+  obj = co_dev_find_obj(dev, 0x6041);
+  co_obj_set_val(obj, 0x00, &statusword, sizeof(statusword));
     /*
     1 revolution (200 Steps) per second
     lead: 150 mm in 10 seconds
@@ -337,7 +333,7 @@ void Cia402Task(void *argument)
     */
     // TODO: Should be never unititialized.
     // Either read from cli or FRAM!
-    if (get_state() == drive_state_operation_enabled) {
+    if(drive_state == cia402::statemachine::DriveState::kOperationEnabled) {
       t++;
     } else {
       t = 0;
@@ -401,10 +397,12 @@ double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f) {
 }
 
 uint32_t co_hal_read_digital_inputs() {
+/*
   digital_inputs io;
   io.positive_limit_switch = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
   uint32_t entry_60FD_00 = read_inputs(io);
   return entry_60FD_00;
+*/
 }
 /*
 enum homing_progress try_homing(co_dev_t* dev) {
@@ -467,19 +465,6 @@ enum homing_progress try_homing(co_dev_t* dev) {
   return progress;
 }
 */
-void set_statusword(co_dev_t* dev) {
-  co_unsigned32_t val = co_hal_read_digital_inputs();
-  //		co_sub_set_val_u32(co_dev_find_sub(dev, 0x60FD, 0),&val);
-  // Controlword
-  co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
-  uint32_t ctrl_word = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6040, 0));
-  // Statusword
-  run_transition(ctrl_word);
-  uint16_t statusword = get_statusword_lowbyte(get_state());
-  obj = co_dev_find_obj(dev, 0x6041);
-  co_obj_set_val(obj, 0x00, &statusword, sizeof(val));
-}
-
 /*
 double run_motion_engine(enum mode selected_mode, int t,
                            struct trapezoidal_ramp params) {
