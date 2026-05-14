@@ -76,12 +76,12 @@ void MX_FREERTOS_Init(void);
 #define DIR1_GPIO_Port GPIOA
 #define RST_Pin GPIO_PIN_9
 #define RST_GPIO_Port GPIOA
+#define FRAM_CS_Pin GPIO_PIN_10
+#define FRAM_CS_GPIO_Port GPIOA
 #define T_SWDIO_Pin GPIO_PIN_13
 #define T_SWDIO_GPIO_Port GPIOA
 #define T_SWCLK_Pin GPIO_PIN_14
 #define T_SWCLK_GPIO_Port GPIOA
-#define T_SWO_Pin GPIO_PIN_3
-#define T_SWO_GPIO_Port GPIOB
 #define CS_Pin GPIO_PIN_6
 #define CS_GPIO_Port GPIOB
 
