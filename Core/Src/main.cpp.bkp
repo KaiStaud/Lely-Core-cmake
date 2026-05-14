@@ -1,31 +1,32 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+extern "C"{
 #include "main.h"
 #include "cmsis_os.h"
 #include "dma.h"
 #include "fdcan.h"
 #include "rtc.h"
-#include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+}
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -34,12 +35,14 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#include <lely/util/diag.h>
+#define trace(...) \
+	diag_at(DIAG_DEBUG, 0, &(struct floc){ __FILE__, __LINE__, 0 }, \
+			__VA_ARGS__)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,19 +53,52 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-void MX_FREERTOS_Init(void);
+//void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
+// dn : master to slave
+// up : slave to 
+// These functions are called by cli:
+// TODO: Implement write to Mode Register
 
+// Variables for to monitor with STM32CubeMonitor.
+// Need to be global!
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/*
+Init + Loop:
+[build] Memory region         Used Size  Region Size  %age Used
+[build]              RAM:        5464 B       128 KB      4.17%
+[build]            FLASH:      269944 B       512 KB     51.49%
 
+No user code:
+
+[build]              RAM:        4176 B       128 KB      3.19%
+[build]            FLASH:         37 KB       512 KB      7.23%
+
+Init only:
+
+[build] Memory region         Used Size  Region Size  %age Used
+[build]              RAM:        5440 B       128 KB      4.15%
+[build]            FLASH:      265656 B       512 KB     50.67%
+
+Loop Only:
+
+[build] Memory region         Used Size  Region Size  %age Used
+[build]              RAM:        4360 B       128 KB      3.33%
+[build]            FLASH:       54512 B       512 KB     10.40%
+
+//Init: Only create_from_sdev: 
+
+[build]              RAM:        3384 B       128 KB      2.58%
+[build]            FLASH:      133768 B       512 KB     25.51%
+
+*/
 /* USER CODE END 0 */
 
 /**
@@ -82,7 +118,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+//hello_easyspin();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -101,9 +137,8 @@ int main(void)
   MX_RTC_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
-  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UART_Receive_IT(&huart2, (uint8_t *)&huart2.Instance->RDR, 1);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -117,9 +152,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-
+  while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -175,7 +208,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
 /* USER CODE END 4 */
 
 /**
@@ -209,8 +241,7 @@ void Error_Handler(void)
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
+  while (1) {
   }
   /* USER CODE END Error_Handler_Debug */
 }
@@ -225,8 +256,9 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* User can add his own implementation to report the file name and line
+     number, ex: printf("Wrong parameters value: file %s on line %d\r\n", file,
+     line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
