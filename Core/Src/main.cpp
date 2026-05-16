@@ -30,7 +30,6 @@ extern "C"{
 }
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,10 +39,7 @@ extern "C"{
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#include <lely/util/diag.h>
-#define trace(...) \
-	diag_at(DIAG_DEBUG, 0, &(struct floc){ __FILE__, __LINE__, 0 }, \
-			__VA_ARGS__)
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -108,7 +104,6 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, (uint8_t *)&huart2.Instance->RDR, 1);
-
   /* USER CODE END 2 */
 
   /* Init scheduler */

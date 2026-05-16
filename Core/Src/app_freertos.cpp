@@ -45,12 +45,15 @@ extern "C" {
 #include "rtc.h"
 #include "tim.h"
 #include "usart.h"
+#include "spi.h"
 #include "version.h"
-//#include <lely/util/diag.h>
 #include "extern_variables.h"
 #include "app_cli.h"
 }
 #include "Statemachine.hpp"
+#include "../Config/Config.hpp"
+#include "../Config/FRAMBackend.hpp"
+#include "../Config/Kinematics.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,7 +97,7 @@ const osThreadAttr_t enableTask_attributes = {
 osThreadId_t canopenTaskHandle;
 const osThreadAttr_t canopenTask_attributes = {
   .name = "canopenTask",
-  .stack_size = 256 * 4,
+  .stack_size = 256 * 8,
   .priority = (osPriority_t) osPriorityLow
 };
 /* Definitions for cia402Task */
@@ -269,14 +272,12 @@ void CANOpenTask(void *argument)
   if (co_rpdo_start(rpdo_1) != 0) {
     //trace("could not start rpdo");
   }
-
-  /*
-  CLI_INIT(&huart2);	
-  CLI_ADD_CMD("move_to", "Rotate n steps", set_target_position);
-  CLI_ADD_CMD("set_rpm", "Rotate with constant velocity", set_rpm);
-  CLI_ADD_CMD("write_object","Write CANOpen object",write_object);
-  */
-canopen_initialized = true;
+  config::ObjectDictionary<config::backends::FRAMBackend> objectDictionary(&hspi1, FRAM_CS_GPIO_Port, FRAM_CS_Pin);
+  objectDictionary.Restore();
+  auto acc = config::motion::persisted_data[5].value; 
+  auto dcc = config::motion::persisted_data[6].value;
+  auto vel =config::motion::persisted_data[7].value;
+  canopen_initialized = true;
   /* Infinite loop */
   for (;;) {
     clock_gettime(1, &now);
@@ -403,6 +404,7 @@ uint32_t co_hal_read_digital_inputs() {
   uint32_t entry_60FD_00 = read_inputs(io);
   return entry_60FD_00;
 */
+return 0;
 }
 /*
 enum homing_progress try_homing(co_dev_t* dev) {

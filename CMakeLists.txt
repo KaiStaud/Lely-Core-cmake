@@ -60,6 +60,8 @@ else()
         GIT_TAG main
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libcia402)
 endif()
+
+add_subdirectory(Core/Config)
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
     Core/Src/cli_handlers.c)
@@ -84,6 +86,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Core/Src/sdev.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/FreeRTOS_CLI.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/app_cli.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/Core/Config/FRAM.cpp
     )
 
 # Add include paths
@@ -93,6 +96,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     external/libmotion/LinearProfiles
     external/libmotion/TrapezoidalRamp
     external/libcia402/Statemachine
+    Core/Config
     )
 
 # Add project symbols (macros)
