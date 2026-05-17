@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
+#include "lely/co/obj.h"
 #include <lely/can/net.hpp>
 
 extern "C" {
@@ -54,6 +55,8 @@ extern "C" {
 #include "../Config/Config.hpp"
 #include "../Config/FRAMBackend.hpp"
 #include "../Config/Kinematics.hpp"
+#include "MotionManager.hpp"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -119,7 +122,12 @@ double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f);
 //double run_motion_engine(mode selected_mode, int t,struct trapezoidal_ramp params);
 void set_statusword(co_dev_t* dev);
 //enum homing_progress try_homing(co_dev_t* dev);
-uint32_t co_hal_read_digital_inputs();
+
+auto disable_drive() -> bool;
+auto enable_drive() -> bool;
+auto read_object(uint16_t index,uint8_t subindex) -> uint32_t;
+auto read_gpo() -> bool;
+auto get_fault_inputs(motion_manager::Polarity polarity) -> cia402::statemachine::FaultInputs;
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -274,9 +282,6 @@ void CANOpenTask(void *argument)
   }
   config::ObjectDictionary<config::backends::FRAMBackend> objectDictionary(&hspi1, FRAM_CS_GPIO_Port, FRAM_CS_Pin);
   objectDictionary.Restore();
-  auto acc = config::motion::persisted_data[5].value; 
-  auto dcc = config::motion::persisted_data[6].value;
-  auto vel =config::motion::persisted_data[7].value;
   canopen_initialized = true;
   /* Infinite loop */
   for (;;) {
@@ -311,14 +316,41 @@ void Cia402Task(void *argument)
 {
   /* USER CODE BEGIN Cia402Task */
   cia402::statemachine::SlaveStatemachine statemachine;
-  int t = 0;
+  motion_manager::MotionManager manager(
+    read_object,
+    read_gpo,
+    disable_drive,
+    enable_drive);
 
+  motion_profile::TargetConstraints target_constraints{
+      .acceleration= 100,//0.002,//1000,
+      .deceleration= 0.002,
+      .end_velocity = 6.0,
+      .start_velocity=  0
+    };
+    manager.Initialize(target_constraints);
+
+  int t = 0;
+  motion_manager::Polarity  polarity = motion_manager::Polarity::kPositive;
+statemachine.HandleControlWord(0x6,get_fault_inputs(polarity));
+statemachine.HandleControlWord(0x7,get_fault_inputs(polarity));
+auto drive_state= statemachine.HandleControlWord(0xF,get_fault_inputs(polarity));
+uint8_t requested_mode = 0;
+motion_manager::MotionModes mode = motion_manager::MotionModes::kNone;
+volatile bool timer_started = false;
+    co_obj_t* obj;
   while (!canopen_initialized){};
+  enable_drive();
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+
   /* Infinite loop */
   for (;;) {
-  co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
+/*
+    co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
   uint32_t ctrl_word = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6040, 0));
   auto drive_state = statemachine.HandleControlWord(ctrl_word);
+  */
+  drive_state= statemachine.HandleControlWord(0xF,get_fault_inputs(polarity));
   uint16_t statusword = statemachine.GetStatuswordLowbyte(drive_state);
   obj = co_dev_find_obj(dev, 0x6041);
   co_obj_set_val(obj, 0x00, &statusword, sizeof(statusword));
@@ -332,17 +364,42 @@ void Cia402Task(void *argument)
     t_a = params.t_acc;
     t_c = params.t_const;
     */
-    // TODO: Should be never unititialized.
-    // Either read from cli or FRAM!
-    if(drive_state == cia402::statemachine::DriveState::kOperationEnabled) {
-      t++;
-    } else {
+    const uint8_t current_requested_mode = static_cast<uint8_t>(read_object(0x6060, 0));
+
+    if (current_requested_mode != requested_mode)
+    {
+      requested_mode = current_requested_mode;
+      mode = manager.RequestMode(requested_mode);
       t = 0;
     }
-//    mode modes_of_operation = get_mode(dev);
-//    rpm = run_motion_engine(modes_of_operation, t, params);
-    //gamma_corrected_dutycycle(params.v_max, rpm);
+    if(drive_state == cia402::statemachine::DriveState::kSwitchedOn)
+    {
+      enable_drive();
+    }
+    if((mode != motion_manager::MotionModes::kNone)&&(drive_state==cia402::statemachine::DriveState::kOperationEnabled))
+    {
+      if(!timer_started){
+        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+        timer_started = true;
+      }
+      rpm = manager.GetFrequency(t);
+      //TIM2->CCR1 = (uint32_t)rpm;
 
+      t++;
+    }
+    // Hardware-Controller:
+    //call manager.QuickStop() when a break condition occurrs.
+    // motion manager will automatically call disable_drive() and sets pwm frequency to zero.
+    if(drive_state == cia402::statemachine::DriveState::kFaultReactionActive)
+    {
+      manager.QuickStop();   
+      timer_started = false;
+      t=0;
+      // Drive should be now in Fault. Clear Fault Condition by writing the statusword.
+
+    }
+    manager.Update();
+    //gamma_corrected_dutycycle(params.v_max, rpm);
     osDelay(1);
   }
   /* USER CODE END Cia402Task */
@@ -396,98 +453,64 @@ double gamma_corrected_dutycycle(uint32_t f_max, uint32_t f) {
   TIM2->CCR1 = (uint32_t)dutycycle;
   return dutycycle;
 }
+/* Hardware IO-Functions */
+auto get_fault_inputs(motion_manager::Polarity polarity) -> cia402::statemachine::FaultInputs
+{
+  auto fault_gpio = read_gpo();
+  cia402::statemachine::FaultInputs limit_switch=cia402::statemachine::FaultInputs::kNoFaultDetected;
+// We currently only support on gpio: Min Limit Endswitch.
+// Polarity | Endswitch triggered | Fault Condition
+// -------------------------------------------------  
+//   Positive |         Min        | No Fault Detected
+//   Positive |         Max        | Right Switch Active
+//   Negative |         Min        | Right Switch Active
+//   Negative |         Max        | No Fault Detected
+  if (fault_gpio)
+  {
+    limit_switch=cia402::statemachine::FaultInputs::kRightSwitchActive;
+  }
 
-uint32_t co_hal_read_digital_inputs() {
-/*
-  digital_inputs io;
-  io.positive_limit_switch = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
-  uint32_t entry_60FD_00 = read_inputs(io);
-  return entry_60FD_00;
-*/
-return 0;
-}
-/*
-enum homing_progress try_homing(co_dev_t* dev) {
-  static enum homing_progress progress = homing_disabled;
-  switch (progress) {
-    case homing_disabled:
-      if (co_sub_get_val_u32(co_dev_find_sub(dev, 0x6060, 0)) == 0x6)
-       {
-          progress = opmode_configured;
-       }
-      break;
-    case opmode_configured:
-      uint32_t homing_profile =
-          co_sub_get_val_u32(co_dev_find_sub(dev, 0x6098, 0));
-      if (homing_profile == 0x1) {
-        progress = homing_profile_configured;
-      }
-      break;
-    case homing_profile_configured:
-      mode = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6060, 0));
-      if (mode == 0xF6) {
-        progress = homing_started;
-      }
-      break;
-    case homing_started:
-      //trace("Homing:Start Homing");
-      //trace("Homing:Acceleration=%lu, Velocity=%lu",
-            co_sub_get_val_u32(co_dev_find_sub(dev, 0x609A, 0)),
-            co_sub_get_val_u32(co_dev_find_sub(dev, 0x6099, 0)));
-      HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
-      HAL_Delay(3000);
-      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-      HAL_Delay(2);
-      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-      uint8_t pData[] = {0, 0xD0, 0, 0, 0x21, 0x00, 0x00, 0x00, 0xb8};
-      //			  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData),
-      // 10);
-      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-      HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-      progress = homing_active;
-      break;
-    case homing_active:
-      if (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)) {
-        progress = homing_done;
-        //trace("Homing: Negative Endswitch triggered. Disabling drive");
-      }
-      break;
-    case homing_done:
-      HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
-      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-      uint8_t pDisableCmd[] = {0, 0xA8};
-      //			  HAL_SPI_Transmit(&hspi1, pDisableCmd,
-      // sizeof(pDisableCmd), 10);
-      HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-      break;
-    
-    default:
-      break;
+  if((limit_switch==cia402::statemachine::FaultInputs::kRightSwitchActive)&&(polarity == motion_manager::Polarity::kPositive))
+  {
+    return cia402::statemachine::FaultInputs::kRightSwitchActive;
   }
-  return progress;
-}
-*/
-/*
-double run_motion_engine(enum mode selected_mode, int t,
-                           struct trapezoidal_ramp params) {
-  if ((selected_mode == profile_position_mode) ||
-      (selected_mode == cyclic_position_mode)) {
-    // TODO: Return Error "struct params uninitialized"
-    const co_obj_t* obj = co_dev_find_obj(dev, 0x607A);
-    move_to(&params, co_obj_get_val_u32(obj, 0));
-    double rpm = ramp_update(&params, t);
-    return rpm;
-  } else if ((selected_mode == profile_velocity_mode) ||
-             (selected_mode == cyclic_velocity_mode)) {
-    const co_obj_t* obj = co_dev_find_obj(dev, 0x60FF);
-    return co_obj_get_val_u32(obj, 0);
-  } else if (selected_mode == homing) {
-    try_homing(dev);
-  } else if (selected_mode == no_mode_selected) {
-  } else {
-    //LOG(CLI_LOG_CAT1, "Mode %i is not implemented", selected_mode);
+  if((limit_switch==cia402::statemachine::FaultInputs::kLeftSwitchActive)&&(polarity == motion_manager::Polarity::kNegative))
+  {
+    return cia402::statemachine::FaultInputs::kLeftSwitchActive;
   }
-  return 0;
+  return cia402::statemachine::FaultInputs::kNoFaultDetected;
 }
-*/
+
+auto read_gpo()-> bool{
+  GPIO_PinState input_ = HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin);
+  // RESET=0
+  // SET=1
+  return static_cast<bool>(input_);
+}
+
+auto read_object(uint16_t index,uint8_t subindex) -> uint32_t
+{
+  co_obj_t* obj = co_dev_find_obj(dev, index);
+  return co_obj_get_val_u32(obj,subindex);
+}
+
+auto enable_drive() -> bool{
+  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
+  osDelay(3000);
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+  osDelay(2);
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+  uint8_t pData[] = {0, 0xD0, 0, 0, 0x21, 0x00, 0x00, 0x00, 0xb8};
+  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData),10);
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+  return true;
+}
+auto disable_drive() -> bool{
+  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+  uint8_t pDisableCmd[] = {0, 0xA8};
+  HAL_SPI_Transmit(&hspi1, pDisableCmd,sizeof(pDisableCmd), 10);
+  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+  return true;
+}
 /* USER CODE END Application */

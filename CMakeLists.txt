@@ -95,6 +95,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${LELY_INCLUDE_DIRS}
     external/libmotion/LinearProfiles
     external/libmotion/TrapezoidalRamp
+    external/libmotion/MotionManager
     external/libcia402/Statemachine
     Core/Config
     )
@@ -119,5 +120,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     lely-libc  
     cia402
     motion_linear_profiles
+    motion_manager
+    motion_linear_profiles
+    motion_homing
 #    motion_constant_velocity
     )
