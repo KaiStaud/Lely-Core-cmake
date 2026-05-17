@@ -341,7 +341,7 @@ volatile bool timer_started = false;
     co_obj_t* obj;
   while (!canopen_initialized){};
   enable_drive();
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+//  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
 
   /* Infinite loop */
   for (;;) {
@@ -379,7 +379,7 @@ volatile bool timer_started = false;
     if((mode != motion_manager::MotionModes::kNone)&&(drive_state==cia402::statemachine::DriveState::kOperationEnabled))
     {
       if(!timer_started){
-        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+        HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
         timer_started = true;
       }
       rpm = manager.GetFrequency(t);
@@ -506,7 +506,7 @@ auto enable_drive() -> bool{
   return true;
 }
 auto disable_drive() -> bool{
-  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_PWM_Stop(&htim8, TIM_CHANNEL_2);
   HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
   uint8_t pDisableCmd[] = {0, 0xA8};
   HAL_SPI_Transmit(&hspi1, pDisableCmd,sizeof(pDisableCmd), 10);

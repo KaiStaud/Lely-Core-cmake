@@ -30,6 +30,7 @@ extern "C"{
 }
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -100,22 +101,10 @@ int main(void)
   MX_USART2_UART_Init();
   MX_RTC_Init();
   MX_TIM2_Init();
-  MX_TIM3_Init();
   MX_SPI1_Init();
+  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, (uint8_t *)&huart2.Instance->RDR, 1);
-  HAL_GPIO_WritePin(RST_GPIO_Port, RST_Pin, GPIO_PIN_SET);
-  HAL_Delay(100);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-  HAL_Delay(2);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
-  uint8_t pData[] = {0, 0xD0, 0, 0, 0x21, 0x00, 0x00, 0x00, 0xb8};
-  HAL_SPI_Transmit(&hspi1, pData, sizeof(pData),10);
-  HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  while(1)
-  {
-  }
   /* USER CODE END 2 */
 
   /* Init scheduler */
