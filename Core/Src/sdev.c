@@ -507,7 +507,7 @@ const struct co_sdev lpc17xx_sdev = {
 			.min = { .u32 = CO_UNSIGNED32_MIN },
 			.max = { .u32 = CO_UNSIGNED32_MAX },
 			.def = { .u32 = CO_UNSIGNED32_MIN },
-			.val = { .u32 = 0x6 },
+			.val = { .u32 = 0x0 },
 			.access = CO_ACCESS_RW,
 			.pdo_mapping = 1,
 			.flags = 0

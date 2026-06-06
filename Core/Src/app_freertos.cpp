@@ -80,6 +80,11 @@ extern "C" {
 /* USER CODE BEGIN Variables */
 co_dev_t* dev;
 double rpm = 0, t_a = 0, t_c = 0;
+uint32_t ctrl_word = 0;
+uint32_t statusword = 0;
+uint8_t requested_mode = 0;
+
+cia402::statemachine::DriveState drive_state = cia402::statemachine::DriveState::kNotReadyToSwitchOn;
 
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
@@ -332,28 +337,22 @@ void Cia402Task(void *argument)
 
   int t = 0;
   motion_manager::Polarity  polarity = motion_manager::Polarity::kPositive;
-statemachine.HandleControlWord(0x6,get_fault_inputs(polarity));
-statemachine.HandleControlWord(0x7,get_fault_inputs(polarity));
-auto drive_state= statemachine.HandleControlWord(0xF,get_fault_inputs(polarity));
-uint8_t requested_mode = 0;
-motion_manager::MotionModes mode = motion_manager::MotionModes::kNone;
-volatile bool timer_started = false;
-    co_obj_t* obj;
+  motion_manager::MotionModes mode = motion_manager::MotionModes::kNone;
+  volatile bool timer_started = false;
   while (!canopen_initialized){};
   enable_drive();
 //  HAL_TIM_PWM_Start(&htim8, TIM_CHANNEL_2);
 
   /* Infinite loop */
   for (;;) {
-/*
-    co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
-  uint32_t ctrl_word = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6040, 0));
-  auto drive_state = statemachine.HandleControlWord(ctrl_word);
-  */
-  drive_state= statemachine.HandleControlWord(0xF,get_fault_inputs(polarity));
-  uint16_t statusword = statemachine.GetStatuswordLowbyte(drive_state);
+
+  co_obj_t* obj = co_dev_find_obj(dev, 0x6040);
+  ctrl_word = co_sub_get_val_u32(co_dev_find_sub(dev, 0x6040, 0));
+
+  drive_state= statemachine.HandleControlWord(ctrl_word,get_fault_inputs(polarity));
+  statusword = statemachine.GetStatuswordLowbyte(drive_state);
   obj = co_dev_find_obj(dev, 0x6041);
-  co_obj_set_val(obj, 0x00, &statusword, sizeof(statusword));
+  co_obj_set_val_u32(obj, 0x00, statusword);
     /*
     1 revolution (200 Steps) per second
     lead: 150 mm in 10 seconds
@@ -364,7 +363,7 @@ volatile bool timer_started = false;
     t_a = params.t_acc;
     t_c = params.t_const;
     */
-    const uint8_t current_requested_mode = static_cast<uint8_t>(read_object(0x6060, 0));
+    uint8_t current_requested_mode = static_cast<uint8_t>(read_object(0x6060, 0));
 
     if (current_requested_mode != requested_mode)
     {
