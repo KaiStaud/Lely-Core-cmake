@@ -72,6 +72,12 @@ void MX_FREERTOS_Init(void);
 #define RCC_OSC_OUT_GPIO_Port GPIOF
 #define FRAM_CS_Pin GPIO_PIN_5
 #define FRAM_CS_GPIO_Port GPIOC
+#define LCD_CS_Pin GPIO_PIN_13
+#define LCD_CS_GPIO_Port GPIOB
+#define LCD_DCX_Pin GPIO_PIN_14
+#define LCD_DCX_GPIO_Port GPIOB
+#define LCD_RESET_Pin GPIO_PIN_15
+#define LCD_RESET_GPIO_Port GPIOB
 #define DIR1_Pin GPIO_PIN_8
 #define DIR1_GPIO_Port GPIOA
 #define RST_Pin GPIO_PIN_9

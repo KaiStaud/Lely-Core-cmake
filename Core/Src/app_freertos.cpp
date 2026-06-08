@@ -50,12 +50,15 @@ extern "C" {
 #include "version.h"
 #include "extern_variables.h"
 #include "app_cli.h"
+#include "lcd.h"
 }
+
 #include "Statemachine.hpp"
 #include "../Config/Config.hpp"
 #include "../Config/FRAMBackend.hpp"
 #include "../Config/Kinematics.hpp"
 #include "MotionManager.hpp"
+#include "screens.hpp"
 
 /* USER CODE END Includes */
 
@@ -83,6 +86,9 @@ double rpm = 0, t_a = 0, t_c = 0;
 uint32_t ctrl_word = 0;
 uint32_t statusword = 0;
 uint8_t requested_mode = 0;
+uint32_t target = 0;
+uint32_t response = 0;
+volatile bool canopen_initialized = false;
 
 cia402::statemachine::DriveState drive_state = cia402::statemachine::DriveState::kNotReadyToSwitchOn;
 
@@ -91,7 +97,7 @@ cia402::statemachine::DriveState drive_state = cia402::statemachine::DriveState:
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 128 * 8,
   .priority = (osPriority_t) osPriorityNormal
 };
 /* Definitions for enableTask */
@@ -203,17 +209,37 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
 
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  int cnt = 0;
+  //int cnt = 0;
+  LCD_init();
+  Display::Screens::StatusScreen statusScreen("CiA402 Status", "Operation Enabled");
+  statusScreen.draw();
+  while(!canopen_initialized){
+    osDelay(1);
+  }
   /* Infinite loop */
   for (;;) {
+    
+    Display::Screens::StatusData data{
+        .controlWord = ctrl_word,
+        .statusWord = statusword,
+        .mode = read_object(0x6060, 0),
+        .rpm = static_cast<uint32_t>(rpm),
+        .target = target,
+        .response = response
+    };
+    
+    statusScreen.updateValues(data);
+    statusScreen.updateStatus(drive_state);
+    statusScreen.draw();
+    
+/*
     if (cnt > 1000) {
       cnt = 0;
     }
     gamma_corrected_dutycycle(1000, cnt);
     cnt++;
-    // Disable Interrupt an poll can rx buffer
-    //CLI_RUN();
-    osDelay(1);
+*/
+    osDelay(1000);
   }
   /* USER CODE END StartDefaultTask */
 }
@@ -242,7 +268,6 @@ void EnableTask(void *argument)
  * @param argument: Not used
  * @retval None
  */
-volatile bool canopen_initialized = false;
 /* USER CODE END Header_CANOpenTask */
 void CANOpenTask(void *argument)
 {
@@ -365,10 +390,31 @@ void Cia402Task(void *argument)
     */
     uint8_t current_requested_mode = static_cast<uint8_t>(read_object(0x6060, 0));
 
+    bool mode_changed = false;
     if (current_requested_mode != requested_mode)
     {
       requested_mode = current_requested_mode;
       mode = manager.RequestMode(requested_mode);
+      t = 0;
+      mode_changed = true;
+    }
+
+    uint32_t current_target = target;
+    bool target_valid = false;
+    if((mode == motion_manager::MotionModes::kCylicPositionMode) || (mode == motion_manager::MotionModes::kProfilePositionMode))
+    {
+      current_target = read_object(0x607A, 0);
+      target_valid = true;
+    }
+    if((mode == motion_manager::MotionModes::kCylicVelocityMode) || (mode == motion_manager::MotionModes::kProfileVelocityMode))
+    {
+      current_target = read_object(0x60FF, 0);
+      target_valid = true;
+    }
+    if(target_valid && (mode_changed || (current_target != target)))
+    {
+      target = current_target;
+      manager.SetTarget(target);
       t = 0;
     }
     if(drive_state == cia402::statemachine::DriveState::kSwitchedOn)

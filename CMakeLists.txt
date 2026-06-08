@@ -62,6 +62,69 @@ else()
 endif()
 
 add_subdirectory(Core/Config)
+add_subdirectory(external/libsht4x)
+
+add_library(ugui STATIC
+    external/UGUI/ugui.c
+    external/UGUI/ugui_button.c
+    external/UGUI/ugui_checkbox.c
+    external/UGUI/ugui_image.c
+    external/UGUI/ugui_textbox.c
+    external/UGUI/ugui_progress.c
+    external/UGUI/Fonts/arial_6X6.c
+    external/UGUI/Fonts/arial_6X6_cyrillic.c
+    external/UGUI/Fonts/arial_9X10.c
+    external/UGUI/Fonts/arial_9X10_cyrillic.c
+    external/UGUI/Fonts/arial_10X13.c
+    external/UGUI/Fonts/arial_10X13_cyrillic.c
+    external/UGUI/Fonts/arial_12X15.c
+    external/UGUI/Fonts/arial_12X15_cyrillic.c
+    external/UGUI/Fonts/arial_16X18.c
+    external/UGUI/Fonts/arial_16X18_cyrillic.c
+    external/UGUI/Fonts/arial_20X23.c
+    external/UGUI/Fonts/arial_20X23_cyrillic.c
+    external/UGUI/Fonts/arial_25X28.c
+    external/UGUI/Fonts/arial_25X28_cyrillic.c
+    external/UGUI/Fonts/arial_29X35.c
+    external/UGUI/Fonts/arial_29X35_cyrillic.c
+    external/UGUI/Fonts/arial_35X40.c
+    external/UGUI/Fonts/arial_35X40_cyrillic.c
+    external/UGUI/Fonts/arial_39X45.c
+    external/UGUI/Fonts/arial_39X45_cyrillic.c
+    external/UGUI/Fonts/arial_45X52.c
+    external/UGUI/Fonts/arial_45X52_cyrillic.c
+    external/UGUI/Fonts/arial_49X57.c
+    external/UGUI/Fonts/arial_49X57_cyrillic.c
+    external/UGUI/Fonts/font_4x6.c
+    external/UGUI/Fonts/font_5x8.c
+    external/UGUI/Fonts/font_5x12.c
+    external/UGUI/Fonts/font_6x8.c
+    external/UGUI/Fonts/font_6x10.c
+    external/UGUI/Fonts/font_7x12.c
+    external/UGUI/Fonts/font_8x8.c
+    external/UGUI/Fonts/font_8x12.c
+    external/UGUI/Fonts/font_8x12_cyrillic.c
+    external/UGUI/Fonts/font_8x14.c
+    external/UGUI/Fonts/font_10x16.c
+    external/UGUI/Fonts/font_12x16.c
+    external/UGUI/Fonts/font_12x20.c
+    external/UGUI/Fonts/font_16x26.c
+    external/UGUI/Fonts/font_22x36.c
+    external/UGUI/Fonts/font_24x40.c
+    external/UGUI/Fonts/font_32x53.c)
+target_include_directories(ugui PUBLIC
+    external/UGUI)
+
+add_library(display STATIC
+    external/LCD/lcd.c
+    #external/LCD/images.c
+    )
+target_include_directories(display PUBLIC
+    external/LCD)
+target_link_libraries(display PUBLIC
+    ugui
+    stm32cubemx)
+
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
     Core/Src/cli_handlers.c)
@@ -123,5 +186,8 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     motion_manager
     motion_linear_profiles
     motion_homing
+    display
+    ugui
+    sht4x
 #    motion_constant_velocity
     )
