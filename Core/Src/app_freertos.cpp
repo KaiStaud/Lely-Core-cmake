@@ -47,6 +47,7 @@ extern "C" {
 #include "tim.h"
 #include "usart.h"
 #include "spi.h"
+#include "i2c.h"
 #include "version.h"
 #include "extern_variables.h"
 #include "app_cli.h"
@@ -59,7 +60,7 @@ extern "C" {
 #include "../Config/Kinematics.hpp"
 #include "MotionManager.hpp"
 #include "screens.hpp"
-
+#include "sht4x.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -97,7 +98,7 @@ cia402::statemachine::DriveState drive_state = cia402::statemachine::DriveState:
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 8,
+  .stack_size = 256 * 8,
   .priority = (osPriority_t) osPriorityNormal
 };
 /* Definitions for enableTask */
@@ -216,9 +217,21 @@ void StartDefaultTask(void *argument)
   while(!canopen_initialized){
     osDelay(1);
   }
+    SHT4x sht4x(&hi2c3);
+  while(!sht4x.IsAlive()) {
+    HAL_Delay(100);
+  }
+  Display::Screens::HardwareScreen hardwareScreen("Hardware Status", "Sensor Data");
   /* Infinite loop */
   for (;;) {
-    
+    sht4x.Sample();
+      Display::Screens::SensorData data{
+          .temperature = sht4x.getTemperature(),
+          .humidity = sht4x.getHumidity()
+      };
+    hardwareScreen.updateValues(data);
+    hardwareScreen.draw();
+/*    
     Display::Screens::StatusData data{
         .controlWord = ctrl_word,
         .statusWord = statusword,
@@ -231,7 +244,8 @@ void StartDefaultTask(void *argument)
     statusScreen.updateValues(data);
     statusScreen.updateStatus(drive_state);
     statusScreen.draw();
-    
+*/
+
 /*
     if (cnt > 1000) {
       cnt = 0;

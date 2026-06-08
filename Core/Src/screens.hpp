@@ -223,8 +223,33 @@ class NetworkScreen : public BasicScreen {
 
 };
 
-class HardwareScreen : public BasicScreen {
+struct SensorData {
+    float temperature;
+    float humidity;
+};
 
+class HardwareScreen : public BasicScreen {
+public:
+HardwareScreen(std::string title, std::string status) : BasicScreen(title, status) {
+        addValueCell(DesignHelpers::ValueCell<int>("Temperature", 0,
+                                                   Dimensions::kValueCellSideMargin,
+                                                   Dimensions::kValueCellTop,
+                                                   Dimensions::kValueCellWidth,
+                                                   Dimensions::kValueCellHeight)); // First row:
+        addValueCell(DesignHelpers::ValueCell<int>("Humidity", 0,
+                                                   Dimensions::kValueCellSideMargin + Dimensions::kValueCellWidth,
+                                                   Dimensions::kValueCellTop,
+                                                   Dimensions::kValueCellWidth,
+                                                   Dimensions::kValueCellHeight));
+    }
+    auto updateValues(SensorData data) -> void {
+        kValueCells[0].setValue(static_cast<int>(data.temperature));
+        kValueCells[1].setValue(static_cast<int>(data.humidity));
+    }
+private:
+    bool temperature_sensor_alive = false;
+    float temperature = 0.0;
+    float humidity = 0.0;
 };
 
 class SettingsScreen : public BasicScreen {
