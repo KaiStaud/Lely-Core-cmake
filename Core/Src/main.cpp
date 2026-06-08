@@ -17,24 +17,20 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "FreeRTOS.h"
 extern "C" {
 #include "main.h"
 #include "cmsis_os.h"
 #include "dma.h"
 #include "fdcan.h"
+#include "i2c.h"
 #include "rtc.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
-#include "../../external/LCD/lcd.h"
-
-
 }
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-//#include "screens.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -67,27 +63,7 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/*
-static inline uint16_t Fix_RGB565(uint8_t r, uint8_t g, uint8_t b)
-{
-    return (uint16_t)(((r & 0xF8) << 8) |
-                      ((g & 0xFC) << 3) |
-                      ((b & 0xF8) >> 3));
-}
 
-static inline uint16_t Fix_ByteSwap16(uint16_t c)
-{
-    return (uint16_t)((c << 8) | (c >> 8));
-}
-
-static inline uint16_t UG_RGB(uint8_t r, uint8_t g, uint8_t b)
-{
-
-    uint16_t c = Fix_RGB565(b, r, g);
-    return c;
-    //return Fix_ByteSwap16(c);
-}
-*/
 /* USER CODE END 0 */
 
 /**
@@ -128,20 +104,8 @@ int main(void)
   MX_SPI1_Init();
   MX_TIM8_Init();
   MX_SPI3_Init();
+  MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
-
-//UG_FillScreen(C_BLACK);
-/*
-UG_FillFrame(0,   0,  79, 119, C_RED);      // rot
-UG_FillFrame(80,  0, 159, 119, C_GREEN);    // grün
-UG_FillFrame(160, 0, 239, 119, C_BLUE);     // blau
-
-UG_FillFrame(0,   120, 79, 239, C_YELLOW);  // gelb
-UG_FillFrame(80,  120, 159, 239, C_CYAN);   // cyan
-UG_FillFrame(160, 120, 239, 239, C_MAGENTA);// magenta
-*/
-
-  //LCD_Test();
   HAL_UART_Receive_IT(&huart2, (uint8_t *)&huart2.Instance->RDR, 1);
   /* USER CODE END 2 */
 

@@ -62,7 +62,6 @@ else()
 endif()
 
 add_subdirectory(Core/Config)
-add_subdirectory(external/libsht4x)
 
 add_library(ugui STATIC
     external/UGUI/ugui.c
@@ -131,6 +130,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
+add_subdirectory(external/libsht4x)
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${LELY_CFLAGS_OTHER})
 
 
@@ -160,6 +160,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     external/libmotion/TrapezoidalRamp
     external/libmotion/MotionManager
     external/libcia402/Statemachine
+    external/libsht4x
     Core/Config
     )
 
