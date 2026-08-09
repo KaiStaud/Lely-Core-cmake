@@ -217,12 +217,12 @@ void StartDefaultTask(void *argument)
   while(!canopen_initialized){
     osDelay(1);
   }
-    SHT4x sht4x(&hi2c3);
+/*
+  SHT4x sht4x(&hi2c3);
   while(!sht4x.IsAlive()) {
     HAL_Delay(100);
   }
   Display::Screens::HardwareScreen hardwareScreen("Hardware Status", "Sensor Data");
-  /* Infinite loop */
   for (;;) {
     sht4x.Sample();
       Display::Screens::SensorData data{
@@ -231,7 +231,7 @@ void StartDefaultTask(void *argument)
       };
     hardwareScreen.updateValues(data);
     hardwareScreen.draw();
-/*    
+*/    
     Display::Screens::StatusData data{
         .controlWord = ctrl_word,
         .statusWord = statusword,
@@ -240,11 +240,11 @@ void StartDefaultTask(void *argument)
         .target = target,
         .response = response
     };
-    
+  for (;;) {
     statusScreen.updateValues(data);
     statusScreen.updateStatus(drive_state);
     statusScreen.draw();
-*/
+
 
 /*
     if (cnt > 1000) {
