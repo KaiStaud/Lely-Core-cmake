@@ -1,6 +1,5 @@
 #pragma once
 #include "FreeRTOS.h"
-#include <lely/co/sdev.h>
 #include <stdint.h>
 
 enum mode {
@@ -28,6 +27,6 @@ BaseType_t prvCommandTaskStats(char *pcWriteBuffer,
                                       size_t xWriteBufferLen,
                                       const char *pcCommandString);
 
-uint8_t set_mode(enum mode p_mode, co_dev_t *dev);
-uint32_t get_mode(co_dev_t *dev);
+//uint8_t set_mode(enum mode p_mode, co_dev_t *dev);
+//uint32_t get_mode(co_dev_t *dev);
 int arg_to_int(const char *pcCommandString, uint8_t arg_number);

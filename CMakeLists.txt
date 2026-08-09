@@ -18,7 +18,6 @@ set(CMAKE_PROJECT_NAME Lely-Core-cmake)
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LELY REQUIRED liblely-coapp)
 
 # Core project settings)
 project(${CMAKE_PROJECT_NAME}  VERSION 0.0.1)
@@ -62,6 +61,11 @@ else()
 endif()
 
 add_subdirectory(Core/Config)
+
+# Collect CANopenNode core sources if not provided
+file(GLOB_RECURSE CANOPENNODE_SOURCES
+    ${CMAKE_SOURCE_DIR}/external/CanOpenSTM32/CANopenNode/*.c
+)
 
 add_library(ugui STATIC
     external/UGUI/ugui.c
@@ -124,6 +128,39 @@ target_link_libraries(display PUBLIC
     ugui
     stm32cubemx)
 
+add_library(canopen STATIC
+
+    # CANopenNode core
+    ${CANOPENNODE_SOURCES}
+
+    # STM32 hardware port
+    ${CMAKE_SOURCE_DIR}/external/CanOpenSTM32/CANopenNode_STM32/CO_driver_STM32.c
+    ${CMAKE_SOURCE_DIR}/external/CanOpenSTM32/CANopenNode_STM32/CO_app_STM32.c
+
+    # Generated Object Dictionary
+    ${CMAKE_SOURCE_DIR}/generated/OD.c
+)
+
+target_include_directories(canopen PUBLIC
+    ${CMAKE_SOURCE_DIR}/external/CanOpenSTM32/CANopenNode
+    ${CMAKE_SOURCE_DIR}/external/CanOpenSTM32/CANopenNode/301
+    ${CMAKE_SOURCE_DIR}/external/CanOpenSTM32/CANopenNode_STM32
+    ${CMAKE_SOURCE_DIR}/Core/Inc
+    ${CMAKE_SOURCE_DIR}/Drivers/BSP/STM32G4xx_Nucleo
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32G4xx_HAL_Driver/Inc
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32G4xx_HAL_Driver/Inc/Legacy
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32G4xx/Include
+    ${CMAKE_SOURCE_DIR}/Drivers/CMSIS/Include
+    ${CMAKE_SOURCE_DIR}/generated/
+)
+
+# Ensure CANopen code sees MCU/board defines used by the rest of the project
+target_compile_definitions(canopen PUBLIC
+    USE_NUCLEO_64
+    USE_HAL_DRIVER
+    STM32G474xx
+)
+
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
     Core/Src/cli_handlers.c)
@@ -143,10 +180,6 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    Core/bsp/can.c
-    Core/bsp/ring_buffer.c
-    Core/Src/stm32_time.c
-    Core/Src/sdev.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/FreeRTOS_CLI.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Src/app_cli.c
     ${CMAKE_CURRENT_SOURCE_DIR}/Core/Config/FRAM.cpp
@@ -174,14 +207,8 @@ list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
 # Add linked libraries
 target_link_libraries(${CMAKE_PROJECT_NAME}
-    stm32cubemx
-    lely-coapp  
-    lely-io2  
-    lely-ev  
-    lely-co  
-    lely-can  
-    lely-util  
-    lely-libc  
+    stm32cubemx 
+    canopen
     cia402
     motion_linear_profiles
     motion_manager
